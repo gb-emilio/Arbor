@@ -1,0 +1,50 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/arborq
+    username: arborq_user
+    password: arborq_pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate          # El esquema lo maneja SQL manual (01_schema.sql)
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+logging:
+  level:
+    com.arborq: DEBUG
+    org.hibernate.SQL: WARN
+
+# ─── Perfil de desarrollo ───────────────────────────────────────────────────
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/arborq_dev
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: create-drop       # Recrea tablas en cada inicio (solo dev)
+
+app:
+  jwt:
+    secret: "6D5A7134743777217A25432A462D4A614E645267556B587032733576387839782F423F4428472B4B6250655368566D5970337336"
+    expiration-ms: 86400000   # 24 h
