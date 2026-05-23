@@ -3,8 +3,6 @@ package com.arborq.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -33,12 +31,11 @@ public class PdfFile {
     private Long fileSize;
 
     /**
-     * BYTEA en PostgreSQL.
-     * @JdbcTypeCode(SqlTypes.BINARY) evita el mapeo OID que usa @Lob
-     * en Hibernate 6 con el driver PostgreSQL.
+     * LONGBLOB en MySQL (hasta 4 GB).
+     * columnDefinition explícita para MySQL; Hibernate no necesita
+     * @JdbcTypeCode ni @Lob con esta definición directa.
      */
-    @Column(nullable = false, columnDefinition = "bytea")
-    @JdbcTypeCode(SqlTypes.BINARY)
+    @Column(nullable = false, columnDefinition = "LONGBLOB")
     private byte[] data;
 
     @CreationTimestamp

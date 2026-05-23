@@ -33,9 +33,7 @@ public class NodeService {
     @Transactional(readOnly = true)
     public List<NodeResponse> getFullTree() {
         return nodeRepo.findByParentIsNullOrderByPositionAsc()
-                .stream()
-                .map(n -> toResponse(n, true))
-                .collect(Collectors.toList());
+                .stream().map(n -> toResponse(n, true)).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -46,18 +44,14 @@ public class NodeService {
     @Transactional(readOnly = true)
     public List<NodeResponse> getRoots() {
         return nodeRepo.findByParentIsNullOrderByPositionAsc()
-                .stream()
-                .map(n -> toResponse(n, false))
-                .collect(Collectors.toList());
+                .stream().map(n -> toResponse(n, false)).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<NodeResponse> getChildren(UUID parentId) {
         findOrThrow(parentId);
         return nodeRepo.findByParentIdOrderByPositionAsc(parentId)
-                .stream()
-                .map(n -> toResponse(n, false))
-                .collect(Collectors.toList());
+                .stream().map(n -> toResponse(n, false)).collect(Collectors.toList());
     }
 
     // ── CREATE ───────────────────────────────────────────────────────────────
@@ -69,7 +63,7 @@ public class NodeService {
         if (req.getParentId() != null) {
             Node parent = findOrThrow(req.getParentId());
             node.setParent(parent);
-            int pos = (req.getPosition() != null)
+            int pos = req.getPosition() != null
                     ? req.getPosition()
                     : nodeRepo.maxPositionByParentId(parent.getId()) + 1;
             node.setPosition(pos);
@@ -142,12 +136,8 @@ public class NodeService {
     @Transactional
     public PdfMetaResponse uploadPdf(UUID nodeId, MultipartFile file) throws IOException {
         Node node = findOrThrow(nodeId);
-        if (!node.isLeaf()) {
-            throw new IllegalArgumentException("Solo los nodos tipo 'leaf' admiten PDF.");
-        }
-        if (!isPdf(file)) {
-            throw new IllegalArgumentException("El archivo debe ser un PDF (application/pdf).");
-        }
+        if (!node.isLeaf()) throw new IllegalArgumentException("Solo los nodos tipo 'leaf' admiten PDF.");
+        if (!isPdf(file))   throw new IllegalArgumentException("El archivo debe ser un PDF.");
 
         pdfRepo.findByNodeId(nodeId).ifPresent(pdfRepo::delete);
 
@@ -159,23 +149,21 @@ public class NodeService {
         pdf.setData(file.getBytes());
 
         PdfFile saved = pdfRepo.save(pdf);
-        log.info("PDF subido para nodo {}: {} ({} bytes)", nodeId, saved.getFilename(), saved.getFileSize());
+        log.info("PDF subido para nodo {}: {}", nodeId, saved.getFilename());
         return toPdfMeta(saved);
     }
 
     @Transactional(readOnly = true)
     public PdfFile downloadPdf(UUID nodeId) {
         return pdfRepo.findByNodeId(nodeId)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "No hay PDF asociado al nodo " + nodeId));
+                .orElseThrow(() -> new EntityNotFoundException("No hay PDF en el nodo " + nodeId));
     }
 
     @Transactional
     public void deletePdf(UUID nodeId) {
         findOrThrow(nodeId);
-        PdfFile pdf = pdfRepo.findByNodeId(nodeId)
-                .orElseThrow(() -> new EntityNotFoundException("No hay PDF en el nodo " + nodeId));
-        pdfRepo.delete(pdf);
+        pdfRepo.delete(pdfRepo.findByNodeId(nodeId)
+                .orElseThrow(() -> new EntityNotFoundException("No hay PDF en el nodo " + nodeId)));
         log.info("PDF eliminado del nodo {}", nodeId);
     }
 
@@ -186,16 +174,21 @@ public class NodeService {
                 .orElseThrow(() -> new EntityNotFoundException("Nodo no encontrado: " + id));
     }
 
-    private List<Option> buildOptions(List<String> labels, Node node) {
-        List<Option> opts = new ArrayList<>();
-        for (int i = 0; i < labels.size(); i++) {
+    private List<Option> buildOptions(List<NodeRequest.OptionRequest> reqs, Node node) {
+        List<Option> result = new ArrayList<>();
+        for (int i = 0; i < reqs.size(); i++) {
+            NodeRequest.OptionRequest or = reqs.get(i);
             Option o = new Option();
             o.setNode(node);
-            o.setLabel(labels.get(i).trim());
+            o.setLabel(or.getLabel().trim());
             o.setPosition(i);
-            opts.add(o);
+            // Resolver el nodo destino si se especificó
+            if (or.getTargetNodeId() != null) {
+                nodeRepo.findById(or.getTargetNodeId()).ifPresent(o::setTargetNode);
+            }
+            result.add(o);
         }
-        return opts;
+        return result;
     }
 
     private boolean isPdf(MultipartFile file) {
@@ -208,14 +201,18 @@ public class NodeService {
     // ── MAPPING ──────────────────────────────────────────────────────────────
 
     public NodeResponse toResponse(Node node, boolean recursive) {
-        List<String> opts = node.getOptions().stream()
-                .map(Option::getLabel)
+        List<OptionResponse> opts = node.getOptions().stream()
+                .map(o -> OptionResponse.builder()
+                        .id(o.getId())
+                        .label(o.getLabel())
+                        .position(o.getPosition())
+                        .targetNodeId(o.getTargetNode() != null ? o.getTargetNode().getId() : null)
+                        .targetNodeText(o.getTargetNode() != null ? o.getTargetNode().getText() : null)
+                        .build())
                 .collect(Collectors.toList());
 
         PdfMetaResponse pdfMeta = null;
-        if (node.isLeaf() && node.getPdfFile() != null) {
-            pdfMeta = toPdfMeta(node.getPdfFile());
-        }
+        if (node.isLeaf() && node.getPdfFile() != null) pdfMeta = toPdfMeta(node.getPdfFile());
 
         List<NodeResponse> children = null;
         if (recursive && !node.getChildren().isEmpty()) {

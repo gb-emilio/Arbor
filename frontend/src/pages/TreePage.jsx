@@ -10,13 +10,14 @@ export default function TreePage({ toast }) {
   const [tree, setTree] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
-  const [modal, setModal] = useState(null) // { mode: 'create'|'edit', parentId, type }
+  const [modal, setModal] = useState(null)
+  // Historial de navegación para poder volver atrás
+  const [navHistory, setNavHistory] = useState([])
 
   const loadTree = useCallback(async () => {
     try {
       const data = await api.tree()
       setTree(data)
-      // refresh selected node from new tree
       if (selected) {
         const fresh = findNode(data, selected.id)
         setSelected(fresh || null)
@@ -35,11 +36,29 @@ export default function TreePage({ toast }) {
     return null
   }
 
-  const handleSelect = node => setSelected(node)
-
-  const handleAdd = (parentId, type = 'question') => {
-    setModal({ mode: 'create', parentId, type })
+  // Navegar a un nodo por ID (desde clic en opción o en hijo)
+  const handleNavigate = (nodeId) => {
+    const target = findNode(tree, nodeId)
+    if (!target) return
+    if (selected) setNavHistory(h => [...h, selected])
+    setSelected(target)
   }
+
+  // Selección desde el árbol lateral (resetea historial)
+  const handleSelect = node => {
+    setNavHistory([])
+    setSelected(node)
+  }
+
+  // Volver al nodo anterior
+  const handleBack = () => {
+    if (navHistory.length === 0) return
+    const prev = navHistory[navHistory.length - 1]
+    setNavHistory(h => h.slice(0, -1))
+    setSelected(prev)
+  }
+
+  const handleAdd = (parentId, type = 'question') => setModal({ mode: 'create', parentId, type })
 
   const handleSave = async (form) => {
     try {
@@ -50,7 +69,6 @@ export default function TreePage({ toast }) {
         const created = await api.create(form)
         toast.ok('Nodo creado')
         await loadTree()
-        // select the new node
         setSelected(created)
         setModal(null)
         return
@@ -66,6 +84,7 @@ export default function TreePage({ toast }) {
       await api.remove(selected.id)
       toast.ok('Nodo eliminado')
       setSelected(null)
+      setNavHistory([])
       await loadTree()
     } catch (err) { toast.err(err.message) }
   }
@@ -74,21 +93,55 @@ export default function TreePage({ toast }) {
 
   return (
     <div style={{ display:'grid', gridTemplateColumns:'280px 1fr', height:'100%' }}>
-      {/* Sidebar tree */}
+      {/* Sidebar árbol */}
       <div style={{ borderRight:'0.5px solid var(--border)', overflowY:'auto', background:'var(--surface2)' }}>
         <NodeTree tree={tree} selectedId={selected?.id} onSelect={handleSelect} onAdd={handleAdd}/>
       </div>
 
-      {/* Detail */}
-      <div style={{ overflowY:'auto' }}>
-        <NodeDetail
-          node={selected}
-          onEdit={() => setModal({ mode: 'edit' })}
-          onDelete={handleDelete}
-          onAddChild={(type) => handleAdd(selected.id, type)}
-          onPdfChange={loadTree}
-          toast={toast}
-        />
+      {/* Panel principal */}
+      <div style={{ overflowY:'auto', display:'flex', flexDirection:'column' }}>
+        {/* Barra de navegación con breadcrumb de historial */}
+        {navHistory.length > 0 && (
+          <div style={{
+            display:'flex', alignItems:'center', gap:8,
+            padding:'8px 28px', borderBottom:'0.5px solid var(--border)',
+            background:'var(--surface2)', fontSize:12, color:'var(--muted)', flexWrap:'wrap'
+          }}>
+            <button className="btn btn-ghost btn-sm" onClick={handleBack} style={{gap:4}}>
+              <i className="ti ti-arrow-left" style={{fontSize:13}}/> Volver
+            </button>
+            <span style={{color:'var(--border-md)'}}>|</span>
+            {navHistory.map((n, i) => (
+              <span key={n.id} style={{display:'flex', alignItems:'center', gap:4}}>
+                <span
+                  style={{color:'var(--accent)', cursor:'pointer', textDecoration:'underline'}}
+                  onClick={() => {
+                    // Navegar a ese punto del historial
+                    setNavHistory(h => h.slice(0, i))
+                    setSelected(n)
+                  }}>
+                  {n.text.length > 30 ? n.text.slice(0,28)+'…' : n.text}
+                </span>
+                <i className="ti ti-chevron-right" style={{fontSize:10}}/>
+              </span>
+            ))}
+            <span style={{color:'var(--ink)', fontWeight:500}}>
+              {selected?.text?.length > 30 ? selected.text.slice(0,28)+'…' : selected?.text}
+            </span>
+          </div>
+        )}
+
+        <div style={{flex:1}}>
+          <NodeDetail
+            node={selected}
+            onEdit={() => setModal({ mode: 'edit' })}
+            onDelete={handleDelete}
+            onAddChild={(type) => handleAdd(selected.id, type)}
+            onPdfChange={loadTree}
+            onNavigate={handleNavigate}
+            toast={toast}
+          />
+        </div>
       </div>
 
       {/* Modal crear/editar */}

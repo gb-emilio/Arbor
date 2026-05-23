@@ -1,8 +1,9 @@
 import { useRef } from 'react'
 import { pdf } from '../api/client'
 
-export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfChange, toast }) {
+export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfChange, onNavigate, toast }) {
   const fileRef = useRef()
+
   if (!node) return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
       height:'100%', gap:12, color:'var(--faint)' }}>
@@ -13,11 +14,8 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
 
   const handleUpload = async e => {
     const file = e.target.files[0]; if (!file) return
-    try {
-      await pdf.upload(node.id, file)
-      toast.ok('PDF subido correctamente')
-      onPdfChange()
-    } catch (err) { toast.err(err.message) }
+    try { await pdf.upload(node.id, file); toast.ok('PDF subido correctamente'); onPdfChange() }
+    catch (err) { toast.err(err.message) }
     fileRef.current.value = ''
   }
 
@@ -33,7 +31,7 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
   }
 
   return (
-    <div style={{ padding: '24px 28px', maxWidth: 680 }}>
+    <div style={{ padding: '24px 28px', maxWidth: 700 }}>
       {/* Header */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:20 }}>
         <div>
@@ -49,30 +47,71 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
         </div>
       </div>
 
-      {/* Options */}
+      {/* ── OPCIONES NAVEGABLES ─────────────────────────────────────────── */}
       {node.type === 'question' && node.options?.length > 0 && (
         <div className="card" style={{marginBottom:16}}>
-          <div style={{fontSize:11,fontWeight:500,color:'var(--faint)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}}>
+          <div style={{fontSize:11,fontWeight:500,color:'var(--faint)',textTransform:'uppercase',
+            letterSpacing:'.06em',marginBottom:12}}>
             Opciones de respuesta
           </div>
-          <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
-            {node.options.map((o,i) => (
-              <span key={i} style={{padding:'4px 10px', background:'var(--info-bg)', color:'var(--info)',
-                borderRadius:20, fontSize:12}}>{o}</span>
-            ))}
+          <div style={{display:'flex', flexDirection:'column', gap:8}}>
+            {node.options.map((o, i) => {
+              const hasTarget = !!o.targetNodeId
+              return (
+                <div key={o.id ?? i} style={{
+                  display:'flex', alignItems:'center', gap:10,
+                  padding:'10px 14px',
+                  border:`0.5px solid ${hasTarget ? 'var(--accent-bg)' : 'var(--border)'}`,
+                  borderRadius:'var(--radius-sm)',
+                  background: hasTarget ? 'var(--accent-pale, #f0faf3)' : 'var(--surface2)',
+                  cursor: hasTarget ? 'pointer' : 'default',
+                  transition:'background .15s, border-color .15s',
+                }}
+                  onClick={() => hasTarget && onNavigate(o.targetNodeId)}
+                  onMouseEnter={e => hasTarget && (e.currentTarget.style.background='var(--accent-bg)')}
+                  onMouseLeave={e => hasTarget && (e.currentTarget.style.background='var(--accent-pale, #f0faf3)')}
+                >
+                  <span style={{
+                    width:22, height:22, borderRadius:'50%', flexShrink:0,
+                    background: hasTarget ? 'var(--accent)' : 'var(--border)',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    fontSize:11, color:'#fff', fontWeight:600
+                  }}>{i+1}</span>
+
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13, fontWeight:500, color:'var(--ink)'}}>{o.label}</div>
+                    {hasTarget && (
+                      <div style={{fontSize:11, color:'var(--accent)', marginTop:2, display:'flex', alignItems:'center', gap:4}}>
+                        <i className="ti ti-arrow-right" style={{fontSize:10}}/>
+                        {o.targetNodeText}
+                      </div>
+                    )}
+                    {!hasTarget && (
+                      <div style={{fontSize:11, color:'var(--faint)', marginTop:2}}>Sin nodo destino enlazado</div>
+                    )}
+                  </div>
+
+                  {hasTarget && (
+                    <i className="ti ti-chevron-right" style={{color:'var(--accent)', fontSize:15, flexShrink:0}}/>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
 
-      {/* Children summary */}
+      {/* Children summary (vista admin) */}
       {node.children?.length > 0 && (
         <div className="card" style={{marginBottom:16}}>
-          <div style={{fontSize:11,fontWeight:500,color:'var(--faint)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}}>
+          <div style={{fontSize:11,fontWeight:500,color:'var(--faint)',textTransform:'uppercase',
+            letterSpacing:'.06em',marginBottom:10}}>
             Nodos hijos ({node.children.length})
           </div>
           {node.children.map(c => (
             <div key={c.id} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',
-              borderBottom:'0.5px solid var(--border)'}}>
+              borderBottom:'0.5px solid var(--border)', cursor:'pointer'}}
+              onClick={() => onNavigate(c.id)}>
               <i className={c.type==='leaf' ? 'ti ti-file-text' : 'ti ti-help-circle'}
                 style={{color: c.type==='leaf' ? 'var(--accent)' : 'var(--info)', fontSize:13}}/>
               <span style={{fontSize:13, flex:1}}>{c.text}</span>
@@ -87,7 +126,8 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
       {/* PDF zone */}
       {node.type === 'leaf' && (
         <div className="card" style={{marginBottom:16}}>
-          <div style={{fontSize:11,fontWeight:500,color:'var(--faint)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:500,color:'var(--faint)',textTransform:'uppercase',
+            letterSpacing:'.06em',marginBottom:12}}>
             Archivo PDF resultado
           </div>
           {node.pdf ? (
@@ -106,7 +146,7 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
             <label style={{
               display:'block', border:'1.5px dashed var(--border-md)', borderRadius:'var(--radius)',
               padding:'20px', textAlign:'center', cursor:'pointer', color:'var(--muted)', fontSize:13,
-              transition:'border-color .15s, background .15s'
+              transition:'border-color .15s'
             }}
               onMouseEnter={e => e.currentTarget.style.borderColor='var(--accent)'}
               onMouseLeave={e => e.currentTarget.style.borderColor='var(--border-md)'}>
@@ -130,7 +170,6 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
         </div>
       )}
 
-      {/* Meta */}
       <div style={{marginTop:20, fontSize:11, color:'var(--faint)'}}>
         ID: <code style={{fontSize:10}}>{node.id}</code>
         {node.updatedAt && <span style={{marginLeft:12}}>

@@ -27,6 +27,16 @@ public class Option {
     @Column(nullable = false)
     private int position;
 
+    /**
+     * Nodo al que navega el usuario si elige esta opción.
+     * NULL = la opción no lleva a ningún nodo aún (sin enlazar).
+     * ON DELETE SET NULL → si se borra el nodo destino, el enlace desaparece
+     * pero la opción permanece.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_node_id")
+    private Node targetNode;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

@@ -7,10 +7,7 @@ import lombok.*;
 import java.util.List;
 import java.util.UUID;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class NodeRequest {
 
     @NotBlank(message = "El tipo es obligatorio")
@@ -25,9 +22,15 @@ public class NodeRequest {
     /** null = nodo raíz */
     private UUID parentId;
 
-    /** Posición entre hermanos (opcional, se asigna al final si no se indica) */
     private Integer position;
 
-    /** Solo para type=question */
-    private List<String> options;
+    /** Lista de opciones con label y, opcionalmente, targetNodeId */
+    private List<OptionRequest> options;
+
+    @Data @NoArgsConstructor @AllArgsConstructor
+    public static class OptionRequest {
+        private String label;
+        /** ID del nodo hijo al que lleva esta opción (null = sin enlazar) */
+        private UUID targetNodeId;
+    }
 }

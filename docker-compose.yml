@@ -2,25 +2,28 @@ version: "3.9"
 
 services:
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: arborq-postgres
+  # ─── MySQL 8 ──────────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: arborq-mysql
     restart: unless-stopped
     environment:
-      POSTGRES_DB:       arborq
-      POSTGRES_USER:     arborq_user
-      POSTGRES_PASSWORD: arborq_pass
+      MYSQL_DATABASE:      arborq
+      MYSQL_USER:          arborq_user
+      MYSQL_PASSWORD:      arborq_pass
+      MYSQL_ROOT_PASSWORD: root_secret
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - arborq-pgdata:/var/lib/postgresql/data
+      - arborq-mysqldata:/var/lib/mysql
       - ./sql/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U arborq_user -d arborq"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "arborq_user", "-parborq_pass"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
+  # ─── API Spring Boot ──────────────────────────────────────────────────────
   api:
     build:
       context: .
@@ -28,23 +31,35 @@ services:
     container_name: arborq-api
     restart: unless-stopped
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL:      jdbc:postgresql://postgres:5432/arborq
+      SPRING_DATASOURCE_URL:      "jdbc:mysql://mysql:3306/arborq?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8"
       SPRING_DATASOURCE_USERNAME: arborq_user
       SPRING_DATASOURCE_PASSWORD: arborq_pass
       APP_JWT_SECRET:             "6D5A7134743777217A25432A462D4A614E645267556B587032733576387839782F423F4428472B4B6250655368566D5970337336"
       APP_JWT_EXPIRATION_MS:      "86400000"
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/auth/login --post-data '{}' || true"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
+  # ─── Frontend React (Vite dev server) ────────────────────────────────────
   frontend:
     image: node:22-alpine
     container_name: arborq-frontend
     working_dir: /app
     volumes:
       - ./frontend:/app
+      - /app/node_modules        # volumen anónimo para no montar node_modules del host
+    environment:
+      # Le decimos al cliente desde qué URL llegar al API.
+      # En Docker, "api" es el hostname del servicio Spring Boot en la red interna.
+      # El navegador del usuario llega a través del puerto publicado 8080 del host.
+      VITE_API_URL: "http://localhost:8080"
     command: sh -c "npm install && npm run dev -- --host"
     ports:
       - "5173:5173"
@@ -52,4 +67,4 @@ services:
       - api
 
 volumes:
-  arborq-pgdata:
+  arborq-mysqldata:

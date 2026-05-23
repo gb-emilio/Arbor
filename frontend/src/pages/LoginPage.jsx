@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { auth } from '../api/client'
 
@@ -99,6 +100,17 @@ export default function LoginPage() {
               Admin por defecto: <code>admin</code> / <code>Admin1234!</code>
             </p>
           )}
+
+          <div style={{textAlign:'center', marginTop:20, paddingTop:16, borderTop:'0.5px solid var(--border)'}}>
+            <Link to="/guia" style={{
+              fontSize:13, color:'var(--accent)', textDecoration:'none',
+              display:'inline-flex', alignItems:'center', gap:6,
+              fontWeight:500
+            }}>
+              <i className="ti ti-eye" style={{fontSize:14}}/>
+              Acceder a la guía pública sin registrarse
+            </Link>
+          </div>
         </div>
       </div>
     </div>

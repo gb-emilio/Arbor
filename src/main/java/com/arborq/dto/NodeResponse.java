@@ -15,7 +15,8 @@ public class NodeResponse {
     private String description;
     private UUID parentId;
     private int position;
-    private List<String> options;
+    /** Opciones con su etiqueta Y su nodo destino (null si no tiene enlace) */
+    private List<OptionResponse> options;
     private PdfMetaResponse pdf;
     private List<NodeResponse> children;
     private OffsetDateTime createdAt;

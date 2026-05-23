@@ -1,129 +1,108 @@
 -- ============================================================
---  ArborQ — Esquema PostgreSQL completo
+--  ArborQ — Esquema MySQL 8
 -- ============================================================
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ------------------------------------------------------------
---  Función trigger updated_at
--- ------------------------------------------------------------
-CREATE OR REPLACE FUNCTION touch_updated_at()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-BEGIN NEW.updated_at = now(); RETURN NEW; END;
-$$;
+SET NAMES utf8mb4;
+SET time_zone = '+00:00';
 
 -- ------------------------------------------------------------
 --  USUARIOS
 -- ------------------------------------------------------------
-CREATE TABLE users (
-    id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    username      VARCHAR(50)  NOT NULL UNIQUE,
-    email         VARCHAR(150) NOT NULL UNIQUE,
+CREATE TABLE IF NOT EXISTS users (
+    id            BINARY(16)   NOT NULL,
+    username      VARCHAR(50)  NOT NULL,
+    email         VARCHAR(150) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role          VARCHAR(20)  NOT NULL DEFAULT 'USER' CHECK (role IN ('ADMIN','USER')),
-    enabled       BOOLEAN      NOT NULL DEFAULT true,
-    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
-CREATE TRIGGER trg_users_updated_at
-    BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+    role          VARCHAR(20)  NOT NULL DEFAULT 'USER',
+    enabled       TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at    DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at    DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_users_username (username),
+    UNIQUE KEY uq_users_email    (email),
+    CONSTRAINT chk_users_role CHECK (role IN ('ADMIN', 'USER'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Admin por defecto — contraseña: Admin1234!
--- BCrypt coste 12 — NUNCA texto plano en base de datos
-INSERT INTO users (username, email, password_hash, role) VALUES
-    ('admin','admin@arborq.local',
-     '$2a$12$wJv8EqPkGm1Tz9Nr0Li4BeHxKOdAs5cFpV2RuY7bXjI3hWQ6nMeD.',
+INSERT IGNORE INTO users (id, username, email, password_hash, role) VALUES
+    (0x00000000000000000000000000000099,
+     'admin', 'admin@arborq.local',
+     '$2a$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
      'ADMIN');
 
 -- ------------------------------------------------------------
 --  NODOS
 -- ------------------------------------------------------------
-CREATE TABLE nodes (
-    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    type        VARCHAR(10) NOT NULL CHECK (type IN ('question','leaf')),
+CREATE TABLE IF NOT EXISTS nodes (
+    id          BINARY(16)  NOT NULL,
+    type        VARCHAR(10) NOT NULL,
     text        TEXT        NOT NULL,
     description TEXT,
-    parent_id   UUID        REFERENCES nodes(id) ON DELETE CASCADE,
-    position    INTEGER     NOT NULL DEFAULT 0,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX idx_nodes_parent ON nodes(parent_id);
-CREATE TRIGGER trg_nodes_updated_at
-    BEFORE UPDATE ON nodes FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+    parent_id   BINARY(16)  NULL,
+    position    INT         NOT NULL DEFAULT 0,
+    created_at  DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at  DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    CONSTRAINT fk_nodes_parent FOREIGN KEY (parent_id) REFERENCES nodes(id) ON DELETE CASCADE,
+    CONSTRAINT chk_nodes_type  CHECK (type IN ('question', 'leaf')),
+    INDEX idx_nodes_parent (parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
---  OPCIONES
+--  OPCIONES DE RESPUESTA
+--  target_node_id: nodo al que navega esta respuesta (puede ser null)
 -- ------------------------------------------------------------
-CREATE TABLE options (
-    id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    node_id    UUID        NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
-    label      TEXT        NOT NULL,
-    position   INTEGER     NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX idx_options_node ON options(node_id);
+CREATE TABLE IF NOT EXISTS options (
+    id             BINARY(16)  NOT NULL,
+    node_id        BINARY(16)  NOT NULL,
+    label          TEXT        NOT NULL,
+    position       INT         NOT NULL DEFAULT 0,
+    target_node_id BINARY(16)  NULL,
+    created_at     DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    CONSTRAINT fk_options_node   FOREIGN KEY (node_id)        REFERENCES nodes(id) ON DELETE CASCADE,
+    CONSTRAINT fk_options_target FOREIGN KEY (target_node_id) REFERENCES nodes(id) ON DELETE SET NULL,
+    INDEX idx_options_node (node_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
 --  ARCHIVOS PDF
 -- ------------------------------------------------------------
-CREATE TABLE pdf_files (
-    id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    node_id      UUID         NOT NULL UNIQUE REFERENCES nodes(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS pdf_files (
+    id           BINARY(16)   NOT NULL,
+    node_id      BINARY(16)   NOT NULL,
     filename     VARCHAR(255) NOT NULL,
     content_type VARCHAR(100) NOT NULL DEFAULT 'application/pdf',
     file_size    BIGINT,
-    data         BYTEA        NOT NULL,
-    uploaded_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
+    data         LONGBLOB     NOT NULL,
+    uploaded_at  DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_pdf_node (node_id),
+    CONSTRAINT fk_pdf_node FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
 --  DATOS DE EJEMPLO
+--  Árbol: Incidencia → [Hardware → ¿Enciende? → [Sí→Periféricos, No→Arranque]]
+--                      [Software → ¿SO?        → [Windows→Manual, macOS→Guía]]
 -- ------------------------------------------------------------
-INSERT INTO nodes (id,type,text,description,parent_id,position) VALUES
-    ('00000000-0000-0000-0000-000000000001','question','¿Cuál es el tipo de incidencia?','Primera clasificación.',NULL,0);
-INSERT INTO options (node_id,label,position) VALUES
-    ('00000000-0000-0000-0000-000000000001','Hardware',0),
-    ('00000000-0000-0000-0000-000000000001','Software',1),
-    ('00000000-0000-0000-0000-000000000001','Red',2);
-INSERT INTO nodes (id,type,text,parent_id,position) VALUES
-    ('00000000-0000-0000-0000-000000000002','question','¿El equipo enciende?','00000000-0000-0000-0000-000000000001',0),
-    ('00000000-0000-0000-0000-000000000003','question','¿Qué sistema operativo?','00000000-0000-0000-0000-000000000001',1),
-    ('00000000-0000-0000-0000-000000000005','leaf','Guía diagnóstico arranque','00000000-0000-0000-0000-000000000002',0),
-    ('00000000-0000-0000-0000-000000000006','leaf','Protocolo revisión periféricos','00000000-0000-0000-0000-000000000002',1),
-    ('00000000-0000-0000-0000-000000000007','leaf','Manual Windows 11 corporativo','00000000-0000-0000-0000-000000000003',0),
-    ('00000000-0000-0000-0000-000000000008','leaf','Guía macOS Ventura IT','00000000-0000-0000-0000-000000000003',1);
-INSERT INTO options (node_id,label,position) VALUES
-    ('00000000-0000-0000-0000-000000000002','Sí',0),
-    ('00000000-0000-0000-0000-000000000002','No',1),
-    ('00000000-0000-0000-0000-000000000003','Windows',0),
-    ('00000000-0000-0000-0000-000000000003','macOS',1),
-    ('00000000-0000-0000-0000-000000000003','Linux',2);
+INSERT IGNORE INTO nodes (id, type, text, description, parent_id, position) VALUES
+    (0x00000000000000000000000000000001, 'question', '¿Cuál es el tipo de incidencia?', 'Primera clasificación.', NULL, 0);
 
--- ============================================================
---  USUARIOS Y AUTENTICACIÓN
--- ============================================================
+INSERT IGNORE INTO nodes (id, type, text, parent_id, position) VALUES
+    (0x00000000000000000000000000000002, 'question', '¿El equipo enciende?',      0x00000000000000000000000000000001, 0),
+    (0x00000000000000000000000000000003, 'question', '¿Qué sistema operativo?',   0x00000000000000000000000000000001, 1),
+    (0x00000000000000000000000000000005, 'leaf',     'Guía diagnóstico arranque', 0x00000000000000000000000000000002, 0),
+    (0x00000000000000000000000000000006, 'leaf',     'Protocolo revisión periféricos', 0x00000000000000000000000000000002, 1),
+    (0x00000000000000000000000000000007, 'leaf',     'Manual Windows 11 corporativo',  0x00000000000000000000000000000003, 0),
+    (0x00000000000000000000000000000008, 'leaf',     'Guía macOS Ventura IT',     0x00000000000000000000000000000003, 1);
 
-CREATE TABLE users (
-    id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    username      VARCHAR(50)  NOT NULL UNIQUE,
-    email         VARCHAR(150) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    role          VARCHAR(20)  NOT NULL DEFAULT 'USER' CHECK (role IN ('ADMIN','USER')),
-    enabled       BOOLEAN      NOT NULL DEFAULT true,
-    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_email    ON users(email);
-
-CREATE TRIGGER trg_users_updated_at
-    BEFORE UPDATE ON users
-    FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
-
--- Admin por defecto: admin / Admin1234!
--- Hash BCrypt coste 12 de "Admin1234!"
-INSERT INTO users (username, email, password_hash, role) VALUES
-    ('admin', 'admin@arborq.local',
-     '$2a$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
-     'ADMIN');
+-- Opciones con target_node_id apuntando al nodo hijo correspondiente
+INSERT IGNORE INTO options (id, node_id, label, position, target_node_id) VALUES
+    (0x00000000000000000000000000000101, 0x00000000000000000000000000000001, 'Hardware', 0, 0x00000000000000000000000000000002),
+    (0x00000000000000000000000000000102, 0x00000000000000000000000000000001, 'Software', 1, 0x00000000000000000000000000000003),
+    (0x00000000000000000000000000000103, 0x00000000000000000000000000000001, 'Red',      2, NULL),
+    (0x00000000000000000000000000000104, 0x00000000000000000000000000000002, 'No (no enciende)', 0, 0x00000000000000000000000000000005),
+    (0x00000000000000000000000000000105, 0x00000000000000000000000000000002, 'Sí (enciende)',    1, 0x00000000000000000000000000000006),
+    (0x00000000000000000000000000000106, 0x00000000000000000000000000000003, 'Windows', 0, 0x00000000000000000000000000000007),
+    (0x00000000000000000000000000000107, 0x00000000000000000000000000000003, 'macOS',   1, 0x00000000000000000000000000000008),
+    (0x00000000000000000000000000000108, 0x00000000000000000000000000000003, 'Linux',   2, NULL);
