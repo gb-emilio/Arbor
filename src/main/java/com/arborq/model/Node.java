@@ -47,6 +47,24 @@ public class Node {
     @OneToOne(mappedBy = "node", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private PdfFile pdfFile;
 
+    // ── Campos de servicios (solo para nodos tipo 'leaf') ─────────────────
+
+    /** Recuadro 1 — URL del enlace personalizado */
+    @Column(name = "service_link_url", length = 500)
+    private String serviceLinkUrl;
+
+    /** Recuadro 1 — Texto del botón */
+    @Column(name = "service_link_label", length = 200)
+    private String serviceLinkLabel;
+
+    /** Recuadro 2 — Hosted Button ID de PayPal para "Revisión de documentación" */
+    @Column(name = "paypal_button_id", length = 200)
+    private String paypalButtonId;
+
+    /** Recuadro 3 — URL del widget de Calendly */
+    @Column(name = "calendly_url", length = 500)
+    private String calendlyUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
@@ -55,7 +73,6 @@ public class Node {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
-    /** Factory method que sustituye al @Builder */
     public static Node create(String type, String text, String description) {
         Node n = new Node();
         n.type        = type;

@@ -75,6 +75,14 @@ public class NodeService {
             buildOptions(req.getOptions(), node).forEach(node::addOption);
         }
 
+        // Campos de servicios (solo leaf)
+        if (node.isLeaf()) {
+            node.setServiceLinkUrl(req.getServiceLinkUrl());
+            node.setServiceLinkLabel(req.getServiceLinkLabel());
+            node.setPaypalButtonId(req.getPaypalButtonId());
+            node.setCalendlyUrl(req.getCalendlyUrl());
+        }
+
         Node saved = nodeRepo.save(node);
         log.info("Nodo creado: {} [{}]", saved.getId(), saved.getType());
         return toResponse(saved, true);
@@ -93,6 +101,14 @@ public class NodeService {
             if (req.getOptions() != null) {
                 buildOptions(req.getOptions(), node).forEach(node::addOption);
             }
+        }
+
+        // Campos de servicios (solo leaf)
+        if (node.isLeaf()) {
+            node.setServiceLinkUrl(req.getServiceLinkUrl());
+            node.setServiceLinkLabel(req.getServiceLinkLabel());
+            node.setPaypalButtonId(req.getPaypalButtonId());
+            node.setCalendlyUrl(req.getCalendlyUrl());
         }
 
         if (req.getParentId() != null) {
@@ -231,6 +247,10 @@ public class NodeService {
         resp.setOptions(opts.isEmpty() ? null : opts);
         resp.setPdf(pdfMeta);
         resp.setChildren(children);
+        resp.setServiceLinkUrl(node.getServiceLinkUrl());
+        resp.setServiceLinkLabel(node.getServiceLinkLabel());
+        resp.setPaypalButtonId(node.getPaypalButtonId());
+        resp.setCalendlyUrl(node.getCalendlyUrl());
         resp.setCreatedAt(node.getCreatedAt());
         resp.setUpdatedAt(node.getUpdatedAt());
         return resp;

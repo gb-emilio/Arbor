@@ -15,10 +15,14 @@ public class NodeResponse {
     private String description;
     private UUID parentId;
     private int position;
-    /** Opciones con su etiqueta Y su nodo destino (null si no tiene enlace) */
     private List<OptionResponse> options;
     private PdfMetaResponse pdf;
     private List<NodeResponse> children;
+    // Campos de servicios para hojas
+    private String serviceLinkUrl;
+    private String serviceLinkLabel;
+    private String paypalButtonId;
+    private String calendlyUrl;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

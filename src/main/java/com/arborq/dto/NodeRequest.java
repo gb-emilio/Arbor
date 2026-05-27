@@ -3,7 +3,6 @@ package com.arborq.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.*;
-
 import java.util.List;
 import java.util.UUID;
 
@@ -18,19 +17,19 @@ public class NodeRequest {
     private String text;
 
     private String description;
-
-    /** null = nodo raíz */
     private UUID parentId;
-
     private Integer position;
-
-    /** Lista de opciones con label y, opcionalmente, targetNodeId */
     private List<OptionRequest> options;
+
+    // Campos de servicios (solo para type=leaf)
+    private String serviceLinkUrl;
+    private String serviceLinkLabel;
+    private String paypalButtonId;
+    private String calendlyUrl;
 
     @Data @NoArgsConstructor @AllArgsConstructor
     public static class OptionRequest {
         private String label;
-        /** ID del nodo hijo al que lleva esta opción (null = sin enlazar) */
         private UUID targetNodeId;
     }
 }

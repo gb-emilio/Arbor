@@ -63,6 +63,12 @@ CREATE TABLE IF NOT EXISTS options (
     CONSTRAINT fk_options_target FOREIGN KEY (target_node_id) REFERENCES nodes(id) ON DELETE SET NULL,
     INDEX idx_options_node (node_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- ── Campos de servicios para nodos hoja ──────────────────────────────────
+ALTER TABLE nodes
+  ADD COLUMN  service_link_url    VARCHAR(500) NULL COMMENT 'URL del enlace personalizado (recuadro 1)',
+  ADD COLUMN  service_link_label  VARCHAR(200) NULL COMMENT 'Texto del botón del enlace personalizado',
+  ADD COLUMN  paypal_button_id    VARCHAR(200) NULL COMMENT 'Hosted Button ID de PayPal (recuadro 2)',
+  ADD COLUMN  calendly_url        VARCHAR(500) NULL COMMENT 'URL del widget de Calendly (recuadro 3)';
 
 -- ------------------------------------------------------------
 --  ARCHIVOS PDF
@@ -106,3 +112,5 @@ INSERT IGNORE INTO options (id, node_id, label, position, target_node_id) VALUES
     (0x00000000000000000000000000000106, 0x00000000000000000000000000000003, 'Windows', 0, 0x00000000000000000000000000000007),
     (0x00000000000000000000000000000107, 0x00000000000000000000000000000003, 'macOS',   1, 0x00000000000000000000000000000008),
     (0x00000000000000000000000000000108, 0x00000000000000000000000000000003, 'Linux',   2, NULL);
+
+
