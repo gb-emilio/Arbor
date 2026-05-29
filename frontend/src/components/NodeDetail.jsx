@@ -63,13 +63,13 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
                   padding:'10px 14px',
                   border:`0.5px solid ${hasTarget ? 'var(--accent-bg)' : 'var(--border)'}`,
                   borderRadius:'var(--radius-sm)',
-                  background: hasTarget ? 'var(--accent-pale, #f0faf3)' : 'var(--surface2)',
+                  background: hasTarget ? 'var(--gold-pale)' : 'var(--surface2)',
                   cursor: hasTarget ? 'pointer' : 'default',
                   transition:'background .15s, border-color .15s',
                 }}
                   onClick={() => hasTarget && onNavigate(o.targetNodeId)}
                   onMouseEnter={e => hasTarget && (e.currentTarget.style.background='var(--accent-bg)')}
-                  onMouseLeave={e => hasTarget && (e.currentTarget.style.background='var(--accent-pale, #f0faf3)')}
+                  onMouseLeave={e => hasTarget && (e.currentTarget.style.background='var(--gold-pale)')}
                 >
                   <span style={{
                     width:22, height:22, borderRadius:'50%', flexShrink:0,

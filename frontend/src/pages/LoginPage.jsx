@@ -33,7 +33,7 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #d8f3dc 0%, #f7f6f3 60%)'
+      background: 'linear-gradient(160deg, var(--gold-pale) 0%, var(--cream) 55%)'
     }}>
       <div style={{width:380}}>
         {/* Logo */}

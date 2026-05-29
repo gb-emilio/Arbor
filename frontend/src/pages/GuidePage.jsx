@@ -1,213 +1,273 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { pub } from '../api/client'
 
 const API = import.meta.env.VITE_API_URL ?? ''
 
-// ── Transición suave ──────────────────────────────────────────────────────
-function useEnter(key) {
-  const [visible, setVisible] = useState(false)
-  useEffect(() => { setVisible(false); const t = requestAnimationFrame(() => setVisible(true)); return () => cancelAnimationFrame(t) }, [key])
-  return visible
-    ? { opacity:1, transform:'translateY(0)', transition:'opacity .28s ease, transform .28s ease' }
-    : { opacity:0, transform:'translateY(10px)' }
+/* ── Detectar si estamos dentro de un iframe ─────────── */
+const IN_IFRAME = (() => { try { return window.self !== window.top } catch { return true } })()
+
+/* ── Notificar altura al padre (WordPress) ───────────── */
+function notifyHeight() {
+  if (!IN_IFRAME) return
+  const h = document.documentElement.scrollHeight
+  window.parent.postMessage({ type: 'arborq-height', height: h }, '*')
 }
 
-// ── Spinner ───────────────────────────────────────────────────────────────
+/* ── Transición de entrada ───────────────────────────── */
+function useEnter(key) {
+  const [v, setV] = useState(false)
+  useEffect(() => {
+    setV(false)
+    const t = requestAnimationFrame(() => { requestAnimationFrame(() => setV(true)) })
+    return () => cancelAnimationFrame(t)
+  }, [key])
+  return v
+    ? { opacity: 1, transform: 'translateY(0)', transition: 'opacity .3s ease, transform .3s ease' }
+    : { opacity: 0, transform: 'translateY(12px)' }
+}
+
+/* ── Spinner ─────────────────────────────────────────── */
 function Loading() {
   return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'40vh',gap:12,color:'var(--muted)'}}>
-      <div style={{width:36,height:36,borderRadius:'50%',border:'2.5px solid var(--accent-bg)',borderTopColor:'var(--accent)',animation:'spin .7s linear infinite'}}/>
-      <span style={{fontSize:13}}>Cargando...</span>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 0', gap:14, color:'var(--muted)' }}>
+      <div style={{ width:36, height:36, borderRadius:'50%', border:'2.5px solid var(--gold-pale)', borderTopColor:'var(--gold)', animation:'spin .7s linear infinite' }}/>
+      <span style={{ fontFamily:'var(--ff-ui)', fontSize:13 }}>Cargando...</span>
     </div>
   )
 }
 
-// ── Error ─────────────────────────────────────────────────────────────────
+/* ── Error ───────────────────────────────────────────── */
 function ErrorScreen({ onRetry }) {
   return (
-    <div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted)'}}>
-      <i className="ti ti-wifi-off" style={{fontSize:40,display:'block',marginBottom:12,color:'var(--faint)'}}/>
-      <p style={{marginBottom:16}}>No se pudo cargar el árbol de preguntas.</p>
+    <div style={{ textAlign:'center', padding:'60px 20px', color:'var(--muted)' }}>
+      <i className="ti ti-wifi-off" style={{ fontSize:36, display:'block', marginBottom:12, color:'var(--faint)' }}/>
+      <p style={{ fontFamily:'var(--ff-ui)', fontSize:14, marginBottom:16 }}>No se pudo cargar el árbol de preguntas.</p>
       <button className="btn btn-primary" onClick={onRetry}>Reintentar</button>
     </div>
   )
 }
 
-// ── Botón volver (solo un enlace, discreto) ───────────────────────────────
+/* ── Botón Volver ────────────────────────────────────── */
 function BackButton({ label, onClick }) {
   return (
     <button onClick={onClick} style={{
-      display:'inline-flex',alignItems:'center',gap:6,marginBottom:28,
-      padding:'6px 12px',background:'transparent',border:'none',cursor:'pointer',
-      color:'var(--muted)',fontSize:13,fontFamily:'var(--font-sans)',
-      borderRadius:'var(--radius-sm)',transition:'color .15s, background .15s',
+      display:'inline-flex', alignItems:'center', gap:6, marginBottom:24,
+      padding:'5px 10px', background:'transparent', border:'none', cursor:'pointer',
+      fontFamily:'var(--ff-ui)', fontSize:12, fontWeight:500, letterSpacing:'.06em', textTransform:'uppercase',
+      color:'var(--muted)', borderRadius:'var(--radius-sm)', transition:'color .18s, background .18s',
     }}
-      onMouseEnter={e=>{e.currentTarget.style.color='var(--accent)';e.currentTarget.style.background='var(--accent-bg)'}}
-      onMouseLeave={e=>{e.currentTarget.style.color='var(--muted)';e.currentTarget.style.background='transparent'}}>
-      <i className="ti ti-arrow-left" style={{fontSize:14}}/>
-      {label.length > 36 ? label.slice(0,34)+'…' : label}
+      onMouseEnter={e => { e.currentTarget.style.color = 'var(--gold)'; e.currentTarget.style.background = 'var(--gold-pale)' }}
+      onMouseLeave={e => { e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'transparent' }}>
+      <i className="ti ti-arrow-left" style={{ fontSize:13 }}/>
+      {label.length > 38 ? label.slice(0, 36) + '…' : label}
     </button>
   )
 }
 
-// ── Picker de raíces (solo si hay más de una) ─────────────────────────────
-function RootPicker({ roots, onSelect }) {
-  const style = useEnter('roots')
+/* ── Línea decorativa dorada ─────────────────────────── */
+function GoldRule() {
+  return <div style={{ width:40, height:2, background:'linear-gradient(90deg,var(--gold),transparent)', margin:'14px 0 20px' }}/>
+}
+
+/* ══════════════════════════════════════════════════════
+   VISTA INICIAL — imagen de la abogada + bienvenida
+══════════════════════════════════════════════════════ */
+function WelcomeView({ roots, lawyerImg, lawyerName, lawyerTitle, onSelect }) {
+  const style = useEnter('welcome')
+  const multiRoot = roots.length > 1
+
   return (
-    <div style={{maxWidth:560,margin:'0 auto',...style}}>
-      <p style={{color:'var(--muted)',marginBottom:28,fontSize:15,lineHeight:1.7}}>
-        Elige un tema para comenzar y te guiaremos paso a paso hasta la respuesta.
-      </p>
-      <div style={{display:'flex',flexDirection:'column',gap:10}}>
-        {roots.map((r,i) => (
-          <button key={r.id} onClick={() => onSelect(r)} style={{
-            display:'flex',alignItems:'center',gap:14,padding:'16px 20px',
-            background:'var(--surface)',border:'0.5px solid var(--border-md)',
-            borderRadius:'var(--radius)',cursor:'pointer',textAlign:'left',width:'100%',
-            transition:'border-color .15s, box-shadow .15s, transform .1s',fontFamily:'var(--font-sans)',
-          }}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.boxShadow='0 4px 16px rgba(45,106,79,.12)';e.currentTarget.style.transform='translateY(-1px)'}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border-md)';e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none'}}>
-            <span style={{width:38,height:38,borderRadius:'50%',flexShrink:0,background:'var(--accent-bg)',color:'var(--accent-dark)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--font-serif)',fontSize:16,fontWeight:600}}>{i+1}</span>
-            <div style={{flex:1}}>
-              <div style={{fontSize:15,fontWeight:500,color:'var(--ink)',lineHeight:1.4}}>{r.text}</div>
-              {r.description && <div style={{fontSize:12,color:'var(--muted)',marginTop:3}}>{r.description}</div>}
-            </div>
-            <i className="ti ti-arrow-right" style={{fontSize:16,color:'var(--accent)',flexShrink:0}}/>
-          </button>
-        ))}
+    <div style={{ ...style, display:'flex', flexDirection:'column', gap:0 }}>
+
+      {/* Banner con foto + texto de bienvenida */}
+      <div style={{
+        display:'grid', gridTemplateColumns: lawyerImg ? '1fr' : '1fr',
+        background: 'var(--ink)', borderRadius:'var(--radius-lg)',
+        overflow:'hidden', marginBottom:28,
+        boxShadow:'0 4px 24px rgba(26,18,8,.12)',
+      }}>
+        {/* Texto */}
+        <div style={{ padding:'36px 32px', display:'flex', flexDirection:'column', justifyContent:'center' }}>
+          <span style={{ fontFamily:'var(--ff-ui)', fontSize:'.62rem', fontWeight:600, letterSpacing:'.22em', textTransform:'uppercase', color:'var(--gold)', marginBottom:14 }}>
+            Consulta gratuita
+          </span>
+          <h2 style={{ color:'var(--cream)', fontStyle:'italic', lineHeight:1.1, marginBottom:14, fontSize:'clamp(1.4rem,3vw,2rem)' }}>
+            ¿En qué<br/><em style={{ fontStyle:'normal', color:'var(--gold)' }}>podemos ayudarte?</em>
+          </h2>
+          <div style={{ width:36, height:2, background:'linear-gradient(90deg,var(--gold),transparent)', margin:'2px 0 14px' }}/>
+          <p style={{ fontFamily:'var(--ff-body)', fontSize:'1rem', color:'rgba(245,240,232,.68)', lineHeight:1.7, margin:0 }}>
+            Responde unas pocas preguntas y te indicaremos exactamente qué trámite necesitas y cómo proceder.
+          </p>
+        </div>
+
+        {/* Foto de la abogada */}
+        
       </div>
+
+      {/* Si hay varias raíces, mostramos el picker */}
+      {multiRoot && (
+        <>
+          <p style={{ fontFamily:'var(--ff-ui)', fontSize:13, color:'var(--muted)', marginBottom:14 }}>Elige el área de tu consulta:</p>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {roots.map((r, i) => (
+              <button key={r.id} onClick={() => onSelect(r)} style={{
+                display:'flex', alignItems:'center', gap:14, padding:'14px 18px',
+                background:'var(--surface)', border:'1.5px solid var(--border)', borderRadius:'var(--radius)',
+                cursor:'pointer', textAlign:'left', width:'100%',
+                fontFamily:'var(--ff-ui)', transition:'border-color .18s, box-shadow .18s, transform .12s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor='var(--gold)'; e.currentTarget.style.boxShadow='0 4px 16px rgba(184,150,62,.12)'; e.currentTarget.style.transform='translateY(-1px)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='none' }}>
+                <span style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:'var(--gold-pale)', color:'var(--terracotta)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--ff-display)', fontSize:15, fontWeight:700 }}>{i + 1}</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:14, fontWeight:500, color:'var(--ink)', lineHeight:1.4 }}>{r.text}</div>
+                  {r.description && <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>{r.description}</div>}
+                </div>
+                <i className="ti ti-arrow-right" style={{ fontSize:15, color:'var(--gold)', flexShrink:0 }}/>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
-// ── Tarjeta de pregunta ───────────────────────────────────────────────────
+/* ══════════════════════════════════════════════════════
+   VISTA DE PREGUNTA
+══════════════════════════════════════════════════════ */
 function QuestionCard({ node, onAnswer, onBack, breadcrumb }) {
   const style = useEnter(node.id)
-  const linked   = (node.options||[]).filter(o => o.targetNodeId)
-  const unlinked = (node.options||[]).filter(o => !o.targetNodeId)
+  const linked   = (node.options || []).filter(o => o.targetNodeId)
+  const unlinked = (node.options || []).filter(o => !o.targetNodeId)
 
   return (
-    <div style={{maxWidth:580,margin:'0 auto',...style}}>
+    <div style={{ ...style }}>
       {breadcrumb.length > 0 && (
-        <BackButton label={breadcrumb[breadcrumb.length-1].text} onClick={onBack}/>
+        <BackButton label={breadcrumb[breadcrumb.length - 1].text} onClick={onBack}/>
       )}
 
-      {/* Pregunta */}
-      <div style={{background:'var(--surface)',border:'0.5px solid var(--border)',borderRadius:'var(--radius-lg)',padding:'28px 28px 24px',boxShadow:'var(--shadow)',marginBottom:16}}>
-        <div style={{fontSize:11,fontWeight:500,color:'var(--accent)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:12}}>
+      {/* Tarjeta pregunta */}
+      <div style={{
+        background:'var(--surface)', border:'1px solid var(--border)',
+        borderRadius:'var(--radius-lg)', padding:'24px 24px 20px',
+        boxShadow:'var(--shadow)', marginBottom:14,
+        borderLeft:'3px solid var(--gold)',
+      }}>
+        <span style={{ fontFamily:'var(--ff-ui)', fontSize:'.65rem', fontWeight:600, letterSpacing:'.18em', textTransform:'uppercase', color:'var(--gold)' }}>
           Pregunta {breadcrumb.length + 1}
-        </div>
-        <h2 style={{lineHeight:1.4,marginBottom:node.description?10:0}}>{node.text}</h2>
-        {node.description && <p style={{color:'var(--muted)',fontSize:14,lineHeight:1.6,marginTop:8}}>{node.description}</p>}
+        </span>
+        <h2 style={{ marginTop:8, lineHeight:1.3, fontSize:'clamp(1.2rem,2.5vw,1.6rem)' }}>{node.text}</h2>
+        {node.description && <p style={{ fontFamily:'var(--ff-body)', color:'var(--muted)', fontSize:'1rem', lineHeight:1.65, marginTop:8, marginBottom:0 }}>{node.description}</p>}
       </div>
 
-      {/* Opciones navegables */}
-      <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:8}}>
-        {linked.map((o,i) => (
-          <button key={o.id} onClick={() => onAnswer(o)} style={{
-            display:'flex',alignItems:'center',gap:14,padding:'14px 18px',
-            background:'var(--surface)',border:'0.5px solid var(--border-md)',
-            borderRadius:'var(--radius)',cursor:'pointer',textAlign:'left',width:'100%',
-            transition:'border-color .15s, background .15s, transform .1s',fontFamily:'var(--font-sans)',
+      {/* Opciones */}
+      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        {linked.map((o, i) => (
+          <button key={o.id || i} onClick={() => onAnswer(o)} style={{
+            display:'flex', alignItems:'center', gap:14, padding:'13px 16px',
+            background:'var(--surface)', border:'1.5px solid var(--border)',
+            borderRadius:'var(--radius)', cursor:'pointer', textAlign:'left', width:'100%',
+            fontFamily:'var(--ff-ui)', transition:'border-color .18s, background .18s, transform .12s',
           }}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.background='#f0faf3';e.currentTarget.style.transform='translateX(4px)'}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border-md)';e.currentTarget.style.background='var(--surface)';e.currentTarget.style.transform='none'}}>
-            <span style={{width:30,height:30,borderRadius:'50%',flexShrink:0,background:'var(--surface2)',color:'var(--muted)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:600}}>
-              {String.fromCharCode(65+i)}
+            onMouseEnter={e => { e.currentTarget.style.borderColor='var(--gold)'; e.currentTarget.style.background='var(--gold-pale)'; e.currentTarget.style.transform='translateX(3px)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background='var(--surface)'; e.currentTarget.style.transform='none' }}>
+            <span style={{ width:28, height:28, borderRadius:'50%', flexShrink:0, background:'var(--cream-dark)', color:'var(--muted)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, fontFamily:'var(--ff-ui)' }}>
+              {String.fromCharCode(65 + i)}
             </span>
-            <span style={{flex:1,fontSize:14,color:'var(--ink)',fontWeight:500}}>{o.label}</span>
-            <i className="ti ti-chevron-right" style={{fontSize:14,color:'var(--faint)',flexShrink:0}}/>
+            <span style={{ flex:1, fontSize:14, fontWeight:500, color:'var(--ink)' }}>{o.label}</span>
+            <i className="ti ti-chevron-right" style={{ fontSize:13, color:'var(--gold)', flexShrink:0 }}/>
           </button>
         ))}
       </div>
 
       {unlinked.length > 0 && (
-        <div style={{marginTop:8}}>
-          <div style={{fontSize:11,color:'var(--faint)',marginBottom:6}}>Sin resultado asignado aún</div>
+        <div style={{ marginTop:10 }}>
+          <div style={{ fontFamily:'var(--ff-ui)', fontSize:11, color:'var(--faint)', marginBottom:6, letterSpacing:'.05em' }}>Sin resultado asignado aún</div>
           {unlinked.map(o => (
-            <div key={o.id} style={{padding:'9px 14px',borderRadius:'var(--radius-sm)',background:'var(--surface2)',color:'var(--muted)',fontSize:13,marginBottom:5,display:'flex',alignItems:'center',gap:8}}>
-              <i className="ti ti-minus" style={{fontSize:11}}/>{o.label}
+            <div key={o.id} style={{ padding:'8px 14px', borderRadius:'var(--radius-sm)', background:'var(--cream-dark)', color:'var(--muted)', fontFamily:'var(--ff-ui)', fontSize:13, marginBottom:5, display:'flex', alignItems:'center', gap:8 }}>
+              <i className="ti ti-minus" style={{ fontSize:10 }}/>{o.label}
             </div>
           ))}
         </div>
       )}
 
       {linked.length === 0 && unlinked.length === 0 && (
-        <div style={{textAlign:'center',padding:'20px',color:'var(--faint)',fontSize:13}}>
-          Esta pregunta no tiene opciones configuradas todavía.
+        <div style={{ textAlign:'center', padding:'20px', color:'var(--faint)', fontFamily:'var(--ff-ui)', fontSize:13 }}>
+          Esta pregunta no tiene opciones configuradas.
         </div>
       )}
     </div>
   )
 }
 
-// ── Recuadro de servicio (misma anchura que las opciones) ─────────────────
-function ServiceBox({ icon, color, colorBg, title, subtitle, children }) {
+/* ══════════════════════════════════════════════════════
+   RECUADRO DE SERVICIO
+══════════════════════════════════════════════════════ */
+function ServiceBox({ icon, accentColor, accentBg, title, subtitle, children }) {
   return (
-    <div style={{
-      display:'flex',flexDirection:'column',
-      border:'0.5px solid var(--border-md)',borderRadius:'var(--radius)',
-      background:'var(--surface)',overflow:'hidden',
-    }}>
-      {/* Header del recuadro */}
-      <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 18px',borderBottom:'0.5px solid var(--border)',background:colorBg}}>
-        <span style={{width:34,height:34,borderRadius:'50%',flexShrink:0,background:color,display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <i className={`ti ${icon}`} style={{fontSize:16,color:'#fff'}}/>
+    <div style={{ border:'1px solid var(--border)', borderRadius:'var(--radius)', background:'var(--surface)', overflow:'hidden' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', borderBottom:'1px solid var(--border)', background:accentBg }}>
+        <span style={{ width:32, height:32, borderRadius:'50%', flexShrink:0, background:accentColor, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <i className={`ti ${icon}`} style={{ fontSize:15, color:'#fff' }}/>
         </span>
         <div>
-          <div style={{fontSize:13,fontWeight:600,color:'var(--ink)'}}>{title}</div>
-          {subtitle && <div style={{fontSize:11,color:'var(--muted)',marginTop:1}}>{subtitle}</div>}
+          <div style={{ fontFamily:'var(--ff-ui)', fontSize:13, fontWeight:600, color:'var(--ink)' }}>{title}</div>
+          {subtitle && <div style={{ fontFamily:'var(--ff-ui)', fontSize:11, color:'var(--muted)', marginTop:1 }}>{subtitle}</div>}
         </div>
       </div>
-      {/* Cuerpo */}
-      <div style={{padding:'14px 18px'}}>{children}</div>
+      <div style={{ padding:'12px 16px' }}>{children}</div>
     </div>
   )
 }
 
-// ── Hoja: resultado + servicios ───────────────────────────────────────────
+/* ══════════════════════════════════════════════════════
+   VISTA DE RESULTADO (HOJA) — sin scroll, crece todo
+══════════════════════════════════════════════════════ */
 function LeafCard({ node, onBack, breadcrumb }) {
   const style = useEnter(node.id)
   const hasPdf      = !!node.pdf
-  const hasLink     = !!(node.serviceLinkUrl)
-  const hasPaypal   = !!(node.paypalButtonId)
-  const hasCalendly = !!(node.calendlyUrl)
-  const hasAnyService = hasLink || hasPaypal || hasCalendly
+  const hasLink     = !!node.serviceLinkUrl
+  const hasPaypal   = !!node.paypalButtonId
+  const hasCalendly = !!node.calendlyUrl
+  const hasServices = hasLink || hasPaypal || hasCalendly
 
   return (
-    <div style={{maxWidth:580,margin:'0 auto',...style}}>
+    <div style={{ ...style }}>
 
-      {/* Botón volver — único enlace de navegación */}
+      {/* Volver */}
       {breadcrumb.length > 0 && (
-        <BackButton label={breadcrumb[breadcrumb.length-1].text} onClick={onBack}/>
+        <BackButton label={breadcrumb[breadcrumb.length - 1].text} onClick={onBack}/>
       )}
 
-      {/* Checkmark */}
-      <div style={{textAlign:'center',marginBottom:20}}>
-        <div style={{width:56,height:56,borderRadius:'50%',margin:'0 auto 10px',background:'var(--accent-bg)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <i className="ti ti-check" style={{fontSize:24,color:'var(--accent)'}}/>
+      {/* Check + título */}
+      <div style={{ textAlign:'center', marginBottom:20 }}>
+        <div style={{ width:52, height:52, borderRadius:'50%', margin:'0 auto 10px', background:'var(--gold-pale)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <i className="ti ti-check" style={{ fontSize:22, color:'var(--gold)' }}/>
         </div>
-        <div style={{fontSize:11,fontWeight:500,color:'var(--accent)',textTransform:'uppercase',letterSpacing:'.08em'}}>Resultado encontrado</div>
+        <span style={{ fontFamily:'var(--ff-ui)', fontSize:'.62rem', fontWeight:600, letterSpacing:'.18em', textTransform:'uppercase', color:'var(--gold)' }}>Resultado encontrado</span>
       </div>
 
       {/* Tarjeta principal */}
-      <div style={{background:'var(--surface)',border:'0.5px solid var(--border)',borderRadius:'var(--radius-lg)',padding:'24px 24px 20px',boxShadow:'0 4px 20px rgba(45,106,79,.08)',marginBottom:16}}>
-        <h2 style={{marginBottom:node.description?10:16,lineHeight:1.4,textAlign:'center'}}>{node.text}</h2>
-        {node.description && <p style={{color:'var(--muted)',fontSize:14,lineHeight:1.7,marginBottom:16,textAlign:'center'}}>{node.description}</p>}
+      <div style={{
+        background:'var(--surface)', border:'1px solid var(--border)',
+        borderRadius:'var(--radius-lg)', padding:'24px',
+        boxShadow:'0 4px 20px rgba(184,150,62,.08)',
+        borderTop:'3px solid var(--gold)', marginBottom:14,
+      }}>
+        <h2 style={{ textAlign:'center', lineHeight:1.3, marginBottom:node.description ? 10 : 16, fontSize:'clamp(1.2rem,2.5vw,1.7rem)' }}>{node.text}</h2>
+        {node.description && <p style={{ fontFamily:'var(--ff-body)', color:'var(--muted)', fontSize:'1rem', lineHeight:1.7, textAlign:'center', marginBottom:16 }}>{node.description}</p>}
 
         {hasPdf ? (
           <>
-            <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'var(--surface2)',borderRadius:'var(--radius-sm)',marginBottom:14,border:'0.5px solid var(--border)'}}>
-              <i className="ti ti-file-type-pdf" style={{fontSize:22,color:'var(--danger)',flexShrink:0}}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:500}}>{node.pdf.filename}</div>
-                {node.pdf.fileSize && <div style={{fontSize:11,color:'var(--faint)'}}>{(node.pdf.fileSize/1024).toFixed(1)} KB</div>}
+            <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'var(--cream-dark)', borderRadius:'var(--radius-sm)', marginBottom:14, border:'1px solid var(--border)' }}>
+              <i className="ti ti-file-type-pdf" style={{ fontSize:22, color:'var(--danger)', flexShrink:0 }}/>
+              <div style={{ flex:1 }}>
+                <div style={{ fontFamily:'var(--ff-ui)', fontSize:13, fontWeight:500 }}>{node.pdf.filename}</div>
+                {node.pdf.fileSize && <div style={{ fontFamily:'var(--ff-ui)', fontSize:11, color:'var(--faint)' }}>{(node.pdf.fileSize / 1024).toFixed(1)} KB</div>}
               </div>
             </div>
-            {/* Descarga directa — fetch con blob para evitar bloqueo de autenticación */}
-            <div style={{textAlign:'center'}}>
+            <div style={{ textAlign:'center' }}>
               <button
                 onClick={async () => {
                   try {
@@ -215,93 +275,77 @@ function LeafCard({ node, onBack, breadcrumb }) {
                     if (!res.ok) throw new Error()
                     const blob = await res.blob()
                     const a = Object.assign(document.createElement('a'), {
-                      href: URL.createObjectURL(blob),
-                      download: node.pdf.filename
+                      href: URL.createObjectURL(blob), download: node.pdf.filename
                     })
                     document.body.appendChild(a); a.click()
                     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 100)
-                  } catch { alert('No se pudo descargar el PDF. Inténtalo de nuevo.') }
+                  } catch { alert('No se pudo descargar el PDF.') }
                 }}
-                style={{display:'inline-flex',alignItems:'center',gap:8,padding:'10px 22px',background:'var(--accent)',color:'#fff',borderRadius:'var(--radius-sm)',fontSize:14,fontWeight:500,border:'none',cursor:'pointer',transition:'background .15s'}}
-                onMouseEnter={e=>e.currentTarget.style.background='var(--accent-dark)'}
-                onMouseLeave={e=>e.currentTarget.style.background='var(--accent)'}>
+                className="btn btn-primary">
                 <i className="ti ti-download"/>
                 Descargar documento PDF
               </button>
             </div>
           </>
         ) : (
-          <div style={{padding:'18px',background:'var(--surface2)',borderRadius:'var(--radius-sm)',color:'var(--muted)',fontSize:13,textAlign:'center'}}>
-            <i className="ti ti-file-off" style={{fontSize:22,display:'block',marginBottom:6,color:'var(--faint)'}}/>
+          <div style={{ padding:'16px', background:'var(--cream-dark)', borderRadius:'var(--radius-sm)', color:'var(--muted)', fontFamily:'var(--ff-ui)', fontSize:13, textAlign:'center' }}>
+            <i className="ti ti-file-off" style={{ fontSize:20, display:'block', marginBottom:6, color:'var(--faint)' }}/>
             El documento no está disponible aún.
           </div>
         )}
       </div>
 
-      {/* ── Tres recuadros de servicios ────────────────────────────────── */}
-      {hasAnyService && (
-        <div style={{marginBottom:20}}>
-          <div style={{fontSize:11,color:'var(--faint)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10,paddingLeft:2}}>
+      {/* Servicios adicionales */}
+      {hasServices && (
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontFamily:'var(--ff-ui)', fontSize:'.62rem', fontWeight:600, letterSpacing:'.15em', textTransform:'uppercase', color:'var(--faint)', marginBottom:8, paddingLeft:2 }}>
             Servicios adicionales
           </div>
-          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
 
-            {/* Recuadro 1 — Enlace personalizado */}
             {hasLink && (
-              <ServiceBox icon="ti-external-link" color="#1d6fb5" colorBg="#eff6ff" title={node.serviceLinkLabel || 'Más información'} subtitle="Accede al recurso externo">
-                <a href={node.serviceLinkUrl} target="_blank" rel="noopener noreferrer" style={{
-                  display:'inline-flex',alignItems:'center',gap:6,padding:'8px 16px',
-                  background:'#1d6fb5',color:'#fff',borderRadius:'var(--radius-sm)',
-                  fontSize:13,fontWeight:500,textDecoration:'none',transition:'background .15s',
-                }}
-                  onMouseEnter={e=>e.currentTarget.style.background='#155a96'}
-                  onMouseLeave={e=>e.currentTarget.style.background='#1d6fb5'}>
-                  <i className="ti ti-arrow-right"/>
-                  {node.serviceLinkLabel || 'Ir al enlace'}
+              <ServiceBox icon="ti-external-link" accentColor="#1d6fb5" accentBg="#eff6ff"
+                title={node.serviceLinkLabel || 'Más información'} subtitle="Accede al recurso externo">
+                <a href={node.serviceLinkUrl} target="_blank" rel="noopener noreferrer"
+                  className="btn btn-primary" style={{ background:'#1d6fb5', borderColor:'#1d6fb5', fontSize:12 }}
+                  onMouseEnter={e => { e.currentTarget.style.background='#155a96'; e.currentTarget.style.borderColor='#155a96' }}
+                  onMouseLeave={e => { e.currentTarget.style.background='#1d6fb5'; e.currentTarget.style.borderColor='#1d6fb5' }}>
+                  <i className="ti ti-arrow-right"/>{node.serviceLinkLabel || 'Ir al enlace'}
                 </a>
               </ServiceBox>
             )}
 
-            {/* Recuadro 2 — Revisión de documentación (PayPal) */}
             {hasPaypal && (
-              <ServiceBox icon="ti-file-check" color="#0070ba" colorBg="#e8f4fd" title="Revisión de documentación" subtitle="Servicio de revisión profesional">
-                <p style={{fontSize:13,color:'var(--muted)',lineHeight:1.6,marginBottom:12}}>
+              <ServiceBox icon="ti-file-check" accentColor="#0070ba" accentBg="#e8f4fd"
+                title="Revisión de documentación" subtitle="Servicio de revisión profesional">
+                <p style={{ fontFamily:'var(--ff-body)', fontSize:'1rem', color:'var(--muted)', lineHeight:1.6, marginBottom:12 }}>
                   Nuestro equipo revisará tu documentación y te proporcionará un informe detallado con observaciones y recomendaciones.
                 </p>
-                {/* Botón PayPal hosted button — se embebe directamente */}
                 <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
                   <input type="hidden" name="cmd" value="_s-xclick"/>
                   <input type="hidden" name="hosted_button_id" value={node.paypalButtonId}/>
                   <input type="hidden" name="currency_code" value="EUR"/>
-                  <button type="submit" style={{
-                    display:'inline-flex',alignItems:'center',gap:8,padding:'9px 18px',
-                    background:'#0070ba',color:'#fff',borderRadius:'var(--radius-sm)',
-                    fontSize:13,fontWeight:600,border:'none',cursor:'pointer',transition:'background .15s',
-                  }}
-                    onMouseEnter={e=>e.currentTarget.style.background='#005ea6'}
-                    onMouseLeave={e=>e.currentTarget.style.background='#0070ba'}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.59 3.025-2.566 6.643-8.993 6.643H9.39l-1.167 7.4h3.633a.641.641 0 0 0 .633-.54l.026-.13.502-3.177.032-.176a.641.641 0 0 1 .634-.54h.398c2.58 0 4.598-.943 5.19-3.67.247-1.13.12-2.07-.449-2.73z"/></svg>
+                  <button type="submit" className="btn" style={{ background:'#0070ba', color:'#fff', borderColor:'#0070ba', fontSize:12 }}
+                    onMouseEnter={e => e.currentTarget.style.background='#005ea6'}
+                    onMouseLeave={e => e.currentTarget.style.background='#0070ba'}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.59 3.025-2.566 6.643-8.993 6.643H9.39l-1.167 7.4h3.633a.641.641 0 0 0 .633-.54l.026-.13.502-3.177.032-.176a.641.641 0 0 1 .634-.54h.398c2.58 0 4.598-.943 5.19-3.67.247-1.13.12-2.07-.449-2.73z"/></svg>
                     Pagar con PayPal
                   </button>
                 </form>
               </ServiceBox>
             )}
 
-            {/* Recuadro 3 — Gestor de citas (Calendly) */}
             {hasCalendly && (
-              <ServiceBox icon="ti-calendar" color="#006bff" colorBg="#eff2ff" title="Reservar cita" subtitle="Elige el horario que mejor te convenga">
-                <p style={{fontSize:13,color:'var(--muted)',lineHeight:1.6,marginBottom:12}}>
-                  Agenda una consulta personalizada con nuestro equipo. Elige día y hora directamente en el calendario.
+              <ServiceBox icon="ti-calendar" accentColor="#006bff" accentBg="#eff2ff"
+                title="Reservar cita" subtitle="Elige el horario que te convenga">
+                <p style={{ fontFamily:'var(--ff-body)', fontSize:'1rem', color:'var(--muted)', lineHeight:1.6, marginBottom:12 }}>
+                  Agenda una consulta personalizada. Elige día y hora directamente en el calendario.
                 </p>
-                <a href={node.calendlyUrl} target="_blank" rel="noopener noreferrer" style={{
-                  display:'inline-flex',alignItems:'center',gap:7,padding:'9px 18px',
-                  background:'#006bff',color:'#fff',borderRadius:'var(--radius-sm)',
-                  fontSize:13,fontWeight:500,textDecoration:'none',transition:'background .15s',
-                }}
-                  onMouseEnter={e=>e.currentTarget.style.background='#0054cc'}
-                  onMouseLeave={e=>e.currentTarget.style.background='#006bff'}>
-                  <i className="ti ti-calendar-event"/>
-                  Reservar cita
+                <a href={node.calendlyUrl} target="_blank" rel="noopener noreferrer"
+                  className="btn" style={{ background:'#006bff', color:'#fff', borderColor:'#006bff', fontSize:12 }}
+                  onMouseEnter={e => { e.currentTarget.style.background='#0054cc'; e.currentTarget.style.borderColor='#0054cc' }}
+                  onMouseLeave={e => { e.currentTarget.style.background='#006bff'; e.currentTarget.style.borderColor='#006bff' }}>
+                  <i className="ti ti-calendar-event"/>Reservar cita
                 </a>
               </ServiceBox>
             )}
@@ -311,30 +355,28 @@ function LeafCard({ node, onBack, breadcrumb }) {
 
       {/* Recorrido */}
       {breadcrumb.length > 0 && (
-        <div style={{marginTop:4,marginBottom:20}}>
-          <div style={{fontSize:11,color:'var(--faint)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:10}}>Tu recorrido</div>
-          <div style={{display:'flex',flexDirection:'column'}}>
-            {breadcrumb.map((b,i) => (
-              <div key={b.id} style={{display:'flex',alignItems:'flex-start',gap:10}}>
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
-                  <div style={{width:7,height:7,borderRadius:'50%',marginTop:5,background:'var(--border-md)',flexShrink:0}}/>
-                  <div style={{width:1,flex:1,minHeight:12,background:'var(--border)'}}/>
-                </div>
-                <div style={{paddingBottom:4}}>
-                  <div style={{fontSize:12,color:'var(--muted)',lineHeight:1.4}}>{b.text}</div>
-                  {b._selectedLabel && <div style={{fontSize:11,color:'var(--accent)',marginTop:1}}>→ {b._selectedLabel}</div>}
-                </div>
+        <div style={{ marginBottom:16, padding:'16px 16px 12px', background:'var(--cream-dark)', borderRadius:'var(--radius)', border:'1px solid var(--border)' }}>
+          <div style={{ fontFamily:'var(--ff-ui)', fontSize:'.62rem', fontWeight:600, letterSpacing:'.15em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>Tu recorrido</div>
+          {breadcrumb.map((b, i) => (
+            <div key={b.id} style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:8 }}>
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', paddingTop:4 }}>
+                <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--gold)', flexShrink:0 }}/>
+                {i < breadcrumb.length - 1 && <div style={{ width:1, height:16, background:'var(--border-md)', margin:'2px 0' }}/>}
               </div>
-            ))}
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <div style={{width:7,height:7,borderRadius:'50%',background:'var(--accent)',flexShrink:0}}/>
-              <div style={{fontSize:12,fontWeight:500,color:'var(--accent)'}}>{node.text}</div>
+              <div>
+                <div style={{ fontFamily:'var(--ff-ui)', fontSize:12, color:'var(--muted)' }}>{b.text}</div>
+                {b._selectedLabel && <div style={{ fontFamily:'var(--ff-ui)', fontSize:11, color:'var(--gold)', marginTop:1 }}>→ {b._selectedLabel}</div>}
+              </div>
             </div>
+          ))}
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--terracotta)', flexShrink:0 }}/>
+            <div style={{ fontFamily:'var(--ff-ui)', fontSize:12, fontWeight:600, color:'var(--terracotta)' }}>{node.text}</div>
           </div>
         </div>
       )}
 
-      <div style={{textAlign:'center',marginTop:8,paddingTop:16,borderTop:'0.5px solid var(--border)'}}>
+      <div style={{ textAlign:'center', paddingTop:12, borderTop:'1px solid var(--border)' }}>
         <button onClick={() => onBack(true)} className="btn btn-ghost btn-sm">
           <i className="ti ti-refresh"/> Hacer otra consulta
         </button>
@@ -343,12 +385,35 @@ function LeafCard({ node, onBack, breadcrumb }) {
   )
 }
 
-// ── Componente principal ──────────────────────────────────────────────────
+/* ══════════════════════════════════════════════════════
+   COMPONENTE PRINCIPAL
+══════════════════════════════════════════════════════ */
 export default function GuidePage() {
-  const [roots, setRoots]           = useState([])
-  const [current, setCurrent]       = useState(null)
+  const [roots,      setRoots]      = useState([])
+  const [current,    setCurrent]    = useState(null)
   const [breadcrumb, setBreadcrumb] = useState([])
-  const [status, setStatus]         = useState('loading')
+  const [status,     setStatus]     = useState('loading')
+
+  // Opciones inyectadas desde WordPress vía query params o postMessage
+  const [lawyerImg,   setLawyerImg]   = useState('')
+  const [lawyerName,  setLawyerName]  = useState('')
+  const [lawyerTitle, setLawyerTitle] = useState('')
+
+  const rootRef = useRef(null)
+
+  // Leer parámetros de URL (WordPress puede pasarlos al iframe)
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    if (p.get('img'))   setLawyerImg(decodeURIComponent(p.get('img')))
+    if (p.get('name'))  setLawyerName(decodeURIComponent(p.get('name')))
+    if (p.get('title')) setLawyerTitle(decodeURIComponent(p.get('title')))
+  }, [])
+
+  // Notificar altura al padre tras cada render
+  useEffect(() => {
+    const timer = setTimeout(notifyHeight, 80)
+    return () => clearTimeout(timer)
+  })
 
   const loadRoots = useCallback(async () => {
     setStatus('loading')
@@ -356,14 +421,14 @@ export default function GuidePage() {
       const data = await pub.roots()
       if (!data || data.length === 0) { setStatus('error'); return }
       setRoots(data)
-      // Si solo hay una raíz, ir directo a la primera pregunta sin mostrar el picker
       if (data.length === 1) {
+        // Una sola raíz → ir directo si es una pregunta; si es hoja, mostrar welcome igual
         const node = await pub.node(data[0].id)
-        setCurrent(node)
-        setBreadcrumb([])
-        setStatus('node')
+        setCurrent(node); setBreadcrumb([])
+        // Si solo hay una raíz y es pregunta, saltamos la bienvenida
+        setStatus(data[0].type === 'question' ? 'question-only' : 'welcome')
       } else {
-        setStatus('roots')
+        setStatus('welcome')
       }
     } catch { setStatus('error') }
   }, [])
@@ -388,49 +453,54 @@ export default function GuidePage() {
   }
 
   const handleBack = (restart = false) => {
-    if (restart || breadcrumb.length === 0) {
-      // Si había una sola raíz, volver directo a esa pregunta
-      if (!restart && roots.length === 1) {
-        pub.node(roots[0].id).then(n => { setCurrent(n); setBreadcrumb([]); setStatus('node') }).catch(()=>setStatus('error'))
-        return
-      }
-      setCurrent(null); setBreadcrumb([]); setStatus(roots.length === 1 ? 'loading' : 'roots')
-      if (roots.length === 1) loadRoots()
+    if (restart) { setCurrent(null); setBreadcrumb([]); setStatus('welcome'); return }
+    if (breadcrumb.length === 0) {
+      setCurrent(null); setBreadcrumb([])
+      setStatus(roots.length <= 1 ? 'welcome' : 'welcome')
       return
     }
     const prev = breadcrumb[breadcrumb.length - 1]
-    setBreadcrumb(bc => bc.slice(0,-1)); setCurrent(prev); setStatus('node')
+    setBreadcrumb(bc => bc.slice(0, -1)); setCurrent(prev); setStatus('node')
   }
 
   const isLeaf = current?.type === 'leaf'
 
+  // Cuando estamos dentro del iframe no mostramos header ni fondo propio
+  // La página queda limpia para embeber en WordPress
+  const wrapStyle = IN_IFRAME
+    ? { padding:'28px 28px 36px', background:'var(--cream)', minHeight:'auto' }
+    : { minHeight:'100vh', background:'var(--cream)', padding:'40px 24px 60px' }
+
   return (
-    <div style={{minHeight:'100vh',background:'linear-gradient(160deg, #eaf5ec 0%, var(--bg) 45%)',display:'flex',flexDirection:'column'}}>
-      {/* Header */}
-      <header style={{padding:'0 24px',height:56,display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'0.5px solid var(--border)',background:'rgba(255,255,255,.85)',backdropFilter:'blur(8px)',position:'sticky',top:0,zIndex:10}}>
-        <div style={{fontFamily:'var(--font-serif)',fontSize:20,color:'var(--accent)',display:'flex',alignItems:'center',gap:8}}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 3v4M8 5l4-2 4 2M5 9h14M7 9v3a2 2 0 002 2h6a2 2 0 002-2V9M12 14v3M9 17h6M10 20h4"/>
-          </svg>
-          ArborQ
+    <div ref={rootRef} style={wrapStyle}>
+      {/* Header solo fuera del iframe */}
+      {!IN_IFRAME && (
+        <div style={{ maxWidth:640, margin:'0 auto 32px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div style={{ fontFamily:'var(--ff-display)', fontSize:'1.3rem', color:'var(--gold)' }}>ArborQ</div>
         </div>
-        <Link to="/login" style={{fontSize:12,color:'var(--muted)',textDecoration:'none',display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:'var(--radius-sm)',border:'0.5px solid var(--border-md)',background:'var(--surface)',transition:'color .15s,border-color .15s'}}
-          onMouseEnter={e=>{e.currentTarget.style.color='var(--accent)';e.currentTarget.style.borderColor='var(--accent)'}}
-          onMouseLeave={e=>{e.currentTarget.style.color='var(--muted)';e.currentTarget.style.borderColor='var(--border-md)'}}>
-          <i className="ti ti-login-2" style={{fontSize:13}}/>
-          Acceso administración
-        </Link>
-      </header>
+      )}
 
-      {/* Contenido */}
-      <div style={{flex:1,padding:'48px 24px 64px',maxWidth:680,margin:'0 auto',width:'100%'}}>
-        {(status === 'roots' || (status === 'node' && breadcrumb.length === 0 && !isLeaf && roots.length > 1)) && (
-          <h1 style={{marginBottom:36}}>¿En qué podemos ayudarte?</h1>
-        )}
-
+      <div style={{ maxWidth:620, margin:'0 auto' }}>
         {status === 'loading' && <Loading/>}
         {status === 'error'   && <ErrorScreen onRetry={loadRoots}/>}
-        {status === 'roots'   && <RootPicker roots={roots} onSelect={handleSelectRoot}/>}
+
+        {/* Bienvenida con foto — raíces múltiples o raíz única que es hoja */}
+        {status === 'welcome' && (
+          <WelcomeView
+            roots={roots}
+            lawyerImg={lawyerImg}
+            lawyerName={lawyerName}
+            lawyerTitle={lawyerTitle}
+            onSelect={handleSelectRoot}
+          />
+        )}
+
+        {/* Raíz única que es pregunta: ir directo */}
+        {status === 'question-only' && current && (
+          <QuestionCard node={current} onAnswer={handleAnswer} onBack={handleBack} breadcrumb={[]}/>
+        )}
+
+        {/* Navegación normal */}
         {status === 'node' && current && !isLeaf && (
           <QuestionCard node={current} onAnswer={handleAnswer} onBack={handleBack} breadcrumb={breadcrumb}/>
         )}
@@ -439,9 +509,6 @@ export default function GuidePage() {
         )}
       </div>
 
-      <footer style={{textAlign:'center',padding:'14px',fontSize:11,color:'var(--faint)',borderTop:'0.5px solid var(--border)'}}>
-        ArborQ · Guía interactiva
-      </footer>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )

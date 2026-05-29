@@ -23,11 +23,6 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT chk_users_role CHECK (role IN ('ADMIN', 'USER'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO users (id, username, email, password_hash, role) VALUES
-    (0x00000000000000000000000000000099,
-     'admin', 'admin@arborq.local',
-     '$2a$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
-     'ADMIN');
 
 -- ------------------------------------------------------------
 --  NODOS
@@ -63,12 +58,6 @@ CREATE TABLE IF NOT EXISTS options (
     CONSTRAINT fk_options_target FOREIGN KEY (target_node_id) REFERENCES nodes(id) ON DELETE SET NULL,
     INDEX idx_options_node (node_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
--- ── Campos de servicios para nodos hoja ──────────────────────────────────
-ALTER TABLE nodes
-  ADD COLUMN  service_link_url    VARCHAR(500) NULL COMMENT 'URL del enlace personalizado (recuadro 1)',
-  ADD COLUMN  service_link_label  VARCHAR(200) NULL COMMENT 'Texto del botón del enlace personalizado',
-  ADD COLUMN  paypal_button_id    VARCHAR(200) NULL COMMENT 'Hosted Button ID de PayPal (recuadro 2)',
-  ADD COLUMN  calendly_url        VARCHAR(500) NULL COMMENT 'URL del widget de Calendly (recuadro 3)';
 
 -- ------------------------------------------------------------
 --  ARCHIVOS PDF
@@ -86,31 +75,18 @@ CREATE TABLE IF NOT EXISTS pdf_files (
     CONSTRAINT fk_pdf_node FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ------------------------------------------------------------
+
+-- ── Campos de servicios para nodos hoja ──────────────────────────────────
+ALTER TABLE nodes
+  ADD COLUMN service_link_url    VARCHAR(500) NULL COMMENT 'URL del enlace personalizado (recuadro 1)',
+  ADD COLUMN service_link_label  VARCHAR(200) NULL COMMENT 'Texto del botón del enlace personalizado',
+  ADD COLUMN paypal_button_id    VARCHAR(200) NULL COMMENT 'Hosted Button ID de PayPal (recuadro 2)',
+  ADD COLUMN calendly_url        VARCHAR(500) NULL COMMENT 'URL del widget de Calendly (recuadro 3)';
+  
+  -- ------------------------------------------------------------
 --  DATOS DE EJEMPLO
---  Árbol: Incidencia → [Hardware → ¿Enciende? → [Sí→Periféricos, No→Arranque]]
---                      [Software → ¿SO?        → [Windows→Manual, macOS→Guía]]
 -- ------------------------------------------------------------
-INSERT IGNORE INTO nodes (id, type, text, description, parent_id, position) VALUES
-    (0x00000000000000000000000000000001, 'question', '¿Cuál es el tipo de incidencia?', 'Primera clasificación.', NULL, 0);
-
-INSERT IGNORE INTO nodes (id, type, text, parent_id, position) VALUES
-    (0x00000000000000000000000000000002, 'question', '¿El equipo enciende?',      0x00000000000000000000000000000001, 0),
-    (0x00000000000000000000000000000003, 'question', '¿Qué sistema operativo?',   0x00000000000000000000000000000001, 1),
-    (0x00000000000000000000000000000005, 'leaf',     'Guía diagnóstico arranque', 0x00000000000000000000000000000002, 0),
-    (0x00000000000000000000000000000006, 'leaf',     'Protocolo revisión periféricos', 0x00000000000000000000000000000002, 1),
-    (0x00000000000000000000000000000007, 'leaf',     'Manual Windows 11 corporativo',  0x00000000000000000000000000000003, 0),
-    (0x00000000000000000000000000000008, 'leaf',     'Guía macOS Ventura IT',     0x00000000000000000000000000000003, 1);
-
--- Opciones con target_node_id apuntando al nodo hijo correspondiente
-INSERT IGNORE INTO options (id, node_id, label, position, target_node_id) VALUES
-    (0x00000000000000000000000000000101, 0x00000000000000000000000000000001, 'Hardware', 0, 0x00000000000000000000000000000002),
-    (0x00000000000000000000000000000102, 0x00000000000000000000000000000001, 'Software', 1, 0x00000000000000000000000000000003),
-    (0x00000000000000000000000000000103, 0x00000000000000000000000000000001, 'Red',      2, NULL),
-    (0x00000000000000000000000000000104, 0x00000000000000000000000000000002, 'No (no enciende)', 0, 0x00000000000000000000000000000005),
-    (0x00000000000000000000000000000105, 0x00000000000000000000000000000002, 'Sí (enciende)',    1, 0x00000000000000000000000000000006),
-    (0x00000000000000000000000000000106, 0x00000000000000000000000000000003, 'Windows', 0, 0x00000000000000000000000000000007),
-    (0x00000000000000000000000000000107, 0x00000000000000000000000000000003, 'macOS',   1, 0x00000000000000000000000000000008),
-    (0x00000000000000000000000000000108, 0x00000000000000000000000000000003, 'Linux',   2, NULL);
-
+INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `role`, `enabled`, `created_at`, `updated_at`) VALUES (0x00000000000000000000000000000099,'admin','admin@arborq.local','$2a$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi','ADMIN',1,'2026-05-25 12:19:52.643040','2026-05-25 12:19:52.643040'),(0xC291C3A9C3A57CC29B5B46C387C2AE44,'user','user@gmail.com','$2a$12$G1u.cmYFembollUAQ021fe.6pfOm0PrRNoFGbE9mousQi.zZydRZO','USER',1,'2026-05-23 10:09:26.704294','2026-05-23 10:09:26.704355');
+INSERT INTO `nodes` (`id`, `type`, `text`, `description`, `parent_id`, `position`, `created_at`, `updated_at`, `service_link_url`, `service_link_label`, `paypal_button_id`, `calendly_url`) VALUES (0x0E02573BF36D43EF8681325DAE5280E2,'question','Me quiero mudar a España','',NULL,1,'2026-05-25 13:19:24.780241','2026-05-25 13:19:24.780268',NULL,NULL,NULL,NULL),(0x3E625F375FCE4423AFF551E47870E3D0,'question','Empieza la búsqueda','',NULL,2,'2026-05-25 13:37:12.292368','2026-05-25 13:37:12.292384',NULL,NULL,NULL,NULL),(0x6AC2D25F353541B58046D9CDEFD8D7EE,'question','¿Eres ciudadano de la UE?','',0x0E02573BF36D43EF8681325DAE5280E2,0,'2026-05-25 13:20:22.277719','2026-05-25 13:20:22.277742',NULL,NULL,NULL,NULL),(0xB82D49C52BDB4C7097840103E2453E38,'leaf','Instrucciones ABC','',0x6AC2D25F353541B58046D9CDEFD8D7EE,1,'2026-05-25 13:27:02.885117','2026-05-25 14:46:22.577282','http://www.gmail.com','GMAIL','ABC89098988','https://valendy.com/breisy/30min'),(0xF51E15340BA54471884A17389463A9FA,'question','¿Cual es el motivo para mudarte?','',0x6AC2D25F353541B58046D9CDEFD8D7EE,0,'2026-05-25 13:21:15.024138','2026-05-25 13:21:15.024157',NULL,NULL,NULL,NULL),(0xF663326EDCD74A2D857353D1BA0BE439,'question','Quiero visitar España','',NULL,0,'2026-05-25 13:16:33.103313','2026-05-25 13:16:33.103354',NULL,NULL,NULL,NULL);
+INSERT INTO `options` (`id`, `node_id`, `label`, `position`, `target_node_id`, `created_at`) VALUES (0x27838C18578C44A7AC702EB4A58F7065,0x3E625F375FCE4423AFF551E47870E3D0,'Me quiero mudar a España',0,0x0E02573BF36D43EF8681325DAE5280E2,'2026-05-25 13:37:12.295822'),(0x3575397B3B1D497CB86F0572909CEF3F,0x3E625F375FCE4423AFF551E47870E3D0,'Quiero visitar España',1,0xF663326EDCD74A2D857353D1BA0BE439,'2026-05-25 13:37:12.296825'),(0x8F5F847663CB42C3B674A6C1A99BADF0,0x6AC2D25F353541B58046D9CDEFD8D7EE,'Si',0,0xB82D49C52BDB4C7097840103E2453E38,'2026-05-25 13:27:52.799246'),(0xD4F52E17B9C74682AF7FE58BF26F98BA,0x0E02573BF36D43EF8681325DAE5280E2,'Si',0,0x6AC2D25F353541B58046D9CDEFD8D7EE,'2026-05-25 13:27:30.111449'),(0xFE805C8EB364472D8CC7E9E1D5BCC674,0x6AC2D25F353541B58046D9CDEFD8D7EE,'No',1,0xF51E15340BA54471884A17389463A9FA,'2026-05-25 13:27:52.803232');
 
