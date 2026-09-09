@@ -72,63 +72,56 @@ function GoldRule() {
 /* ══════════════════════════════════════════════════════
    VISTA INICIAL — imagen de la abogada + bienvenida
 ══════════════════════════════════════════════════════ */
-function WelcomeView({ roots, lawyerImg, lawyerName, lawyerTitle, onSelect }) {
-  const style = useEnter('welcome')
-  const multiRoot = roots.length > 1
-
+/* Botón "Empezar ahora" — vista inicial, sin texto ni picker */
+function StartButton({ onStart }) {
+  const style = useEnter('start')
   return (
-    <div style={{ ...style, display:'flex', flexDirection:'column', gap:0 }}>
+    <div style={{ ...style, display:'flex', alignItems:'center', justifyContent:'center', padding:'60px 24px' }}>
+      <button
+        onClick={onStart}
+        style={{
+          display:'inline-flex', alignItems:'center', gap:10,
+          padding:'18px 48px', background:'var(--gold)', color:'#fff',
+          border:'none', borderRadius:'var(--radius-sm)', cursor:'pointer',
+          fontFamily:'var(--ff-ui)', fontSize:'1.1rem', fontWeight:600,
+          letterSpacing:'.06em', textTransform:'uppercase',
+          transition:'background .2s, transform .15s, box-shadow .2s',
+          boxShadow:'0 6px 24px rgba(140,4,4,.35)',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background='var(--terracotta)'; e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow='0 10px 28px rgba(92,3,3,.4)' }}
+        onMouseLeave={e => { e.currentTarget.style.background='var(--gold)'; e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='0 6px 24px rgba(140,4,4,.35)' }}>
+        <i className="ti ti-arrow-right" style={{ fontSize:20 }}/>
+        Empezar ahora
+      </button>
+    </div>
+  )
+}
 
-      {/* Banner con foto + texto de bienvenida */}
-      <div style={{
-        display:'grid', gridTemplateColumns: lawyerImg ? '1fr' : '1fr',
-        background: 'var(--ink)', borderRadius:'var(--radius-lg)',
-        overflow:'hidden', marginBottom:28,
-        boxShadow:'0 4px 24px rgba(26,18,8,.12)',
-      }}>
-        {/* Texto */}
-        <div style={{ padding:'36px 32px', display:'flex', flexDirection:'column', justifyContent:'center' }}>
-          <span style={{ fontFamily:'var(--ff-ui)', fontSize:'.62rem', fontWeight:600, letterSpacing:'.22em', textTransform:'uppercase', color:'var(--gold)', marginBottom:14 }}>
-            Consulta gratuita
-          </span>
-          <h2 style={{ color:'var(--cream)', fontStyle:'italic', lineHeight:1.1, marginBottom:14, fontSize:'clamp(1.4rem,3vw,2rem)' }}>
-            ¿En qué<br/><em style={{ fontStyle:'normal', color:'var(--gold)' }}>podemos ayudarte?</em>
-          </h2>
-          <div style={{ width:36, height:2, background:'linear-gradient(90deg,var(--gold),transparent)', margin:'2px 0 14px' }}/>
-          <p style={{ fontFamily:'var(--ff-body)', fontSize:'1rem', color:'rgba(245,240,232,.68)', lineHeight:1.7, margin:0 }}>
-            Responde unas pocas preguntas y te indicaremos exactamente qué trámite necesitas y cómo proceder.
-          </p>
-        </div>
-
-        {/* Foto de la abogada */}
-        
+/* Picker de raíces — aparece después del botón, reemplazándolo */
+function RootPicker({ roots, onSelect, onBack }) {
+  const style = useEnter('picker')
+  return (
+    <div style={{ ...style }}>
+      <p style={{ fontFamily:'var(--ff-ui)', fontSize:13, color:'var(--muted)', marginBottom:14 }}>Elige el área de tu consulta:</p>
+      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        {roots.map((r, i) => (
+          <button key={r.id} onClick={() => onSelect(r)} style={{
+            display:'flex', alignItems:'center', gap:14, padding:'14px 18px',
+            background:'var(--surface)', border:'1.5px solid var(--border)', borderRadius:'var(--radius)',
+            cursor:'pointer', textAlign:'left', width:'100%',
+            fontFamily:'var(--ff-ui)', transition:'border-color .18s, box-shadow .18s, transform .12s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor='var(--gold)'; e.currentTarget.style.boxShadow='0 4px 16px rgba(140,4,4,.15)'; e.currentTarget.style.transform='translateY(-1px)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='none' }}>
+            <span style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:'var(--gold-pale)', color:'var(--terracotta)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--ff-display)', fontSize:15, fontWeight:700 }}>{i + 1}</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:14, fontWeight:500, color:'var(--ink)', lineHeight:1.4 }}>{r.text}</div>
+              {r.description && <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>{r.description}</div>}
+            </div>
+            <i className="ti ti-arrow-right" style={{ fontSize:15, color:'var(--gold)', flexShrink:0 }}/>
+          </button>
+        ))}
       </div>
-
-      {/* Si hay varias raíces, mostramos el picker */}
-      {multiRoot && (
-        <>
-          <p style={{ fontFamily:'var(--ff-ui)', fontSize:13, color:'var(--muted)', marginBottom:14 }}>Elige el área de tu consulta:</p>
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {roots.map((r, i) => (
-              <button key={r.id} onClick={() => onSelect(r)} style={{
-                display:'flex', alignItems:'center', gap:14, padding:'14px 18px',
-                background:'var(--surface)', border:'1.5px solid var(--border)', borderRadius:'var(--radius)',
-                cursor:'pointer', textAlign:'left', width:'100%',
-                fontFamily:'var(--ff-ui)', transition:'border-color .18s, box-shadow .18s, transform .12s',
-              }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor='var(--gold)'; e.currentTarget.style.boxShadow='0 4px 16px rgba(184,150,62,.12)'; e.currentTarget.style.transform='translateY(-1px)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='none' }}>
-                <span style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, background:'var(--gold-pale)', color:'var(--terracotta)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--ff-display)', fontSize:15, fontWeight:700 }}>{i + 1}</span>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:14, fontWeight:500, color:'var(--ink)', lineHeight:1.4 }}>{r.text}</div>
-                  {r.description && <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>{r.description}</div>}
-                </div>
-                <i className="ti ti-arrow-right" style={{ fontSize:15, color:'var(--gold)', flexShrink:0 }}/>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   )
 }
@@ -144,7 +137,7 @@ function QuestionCard({ node, onAnswer, onBack, breadcrumb }) {
   return (
     <div style={{ ...style }}>
       {breadcrumb.length > 0 && (
-        <BackButton label={breadcrumb[breadcrumb.length - 1].text} onClick={onBack}/>
+        <BackButton label={breadcrumb[breadcrumb.length - 1].text} onClick={() => onBack()}/>
       )}
 
       {/* Tarjeta pregunta */}
@@ -237,7 +230,7 @@ function LeafCard({ node, onBack, breadcrumb }) {
 
       {/* Volver */}
       {breadcrumb.length > 0 && (
-        <BackButton label={breadcrumb[breadcrumb.length - 1].text} onClick={onBack}/>
+        <BackButton label={breadcrumb[breadcrumb.length - 1].text} onClick={() => onBack()}/>
       )}
 
       {/* Check + título */}
@@ -304,19 +297,19 @@ function LeafCard({ node, onBack, breadcrumb }) {
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
 
             {hasLink && (
-              <ServiceBox icon="ti-external-link" accentColor="#1d6fb5" accentBg="#eff6ff"
+              <ServiceBox icon="ti-external-link" accentColor="var(--gold)" accentBg="var(--gold-pale)"
                 title={node.serviceLinkLabel || 'Más información'} subtitle="Accede al recurso externo">
                 <a href={node.serviceLinkUrl} target="_blank" rel="noopener noreferrer"
-                  className="btn btn-primary" style={{ background:'#1d6fb5', borderColor:'#1d6fb5', fontSize:12 }}
-                  onMouseEnter={e => { e.currentTarget.style.background='#155a96'; e.currentTarget.style.borderColor='#155a96' }}
-                  onMouseLeave={e => { e.currentTarget.style.background='#1d6fb5'; e.currentTarget.style.borderColor='#1d6fb5' }}>
+                  className="btn btn-primary" style={{ background:'var(--gold)', borderColor:'var(--gold)', fontSize:12 }}
+                  onMouseEnter={e => { e.currentTarget.style.background='var(--terracotta)'; e.currentTarget.style.borderColor='var(--terracotta)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background='var(--gold)'; e.currentTarget.style.borderColor='var(--gold)' }}>
                   <i className="ti ti-arrow-right"/>{node.serviceLinkLabel || 'Ir al enlace'}
                 </a>
               </ServiceBox>
             )}
 
             {hasPaypal && (
-              <ServiceBox icon="ti-file-check" accentColor="#0070ba" accentBg="#e8f4fd"
+              <ServiceBox icon="ti-file-check" accentColor="var(--terracotta)" accentBg="var(--gold-pale)"
                 title="Revisión de documentación" subtitle="Servicio de revisión profesional">
                 <p style={{ fontFamily:'var(--ff-body)', fontSize:'1rem', color:'var(--muted)', lineHeight:1.6, marginBottom:12 }}>
                   Nuestro equipo revisará tu documentación y te proporcionará un informe detallado con observaciones y recomendaciones.
@@ -325,9 +318,9 @@ function LeafCard({ node, onBack, breadcrumb }) {
                   <input type="hidden" name="cmd" value="_s-xclick"/>
                   <input type="hidden" name="hosted_button_id" value={node.paypalButtonId}/>
                   <input type="hidden" name="currency_code" value="EUR"/>
-                  <button type="submit" className="btn" style={{ background:'#0070ba', color:'#fff', borderColor:'#0070ba', fontSize:12 }}
-                    onMouseEnter={e => e.currentTarget.style.background='#005ea6'}
-                    onMouseLeave={e => e.currentTarget.style.background='#0070ba'}>
+                  <button type="submit" className="btn" style={{ background:'var(--terracotta)', color:'#fff', borderColor:'var(--terracotta)', fontSize:12 }}
+                    onMouseEnter={e => e.currentTarget.style.background='#3a0202'}
+                    onMouseLeave={e => e.currentTarget.style.background='var(--terracotta)'}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.59 3.025-2.566 6.643-8.993 6.643H9.39l-1.167 7.4h3.633a.641.641 0 0 0 .633-.54l.026-.13.502-3.177.032-.176a.641.641 0 0 1 .634-.54h.398c2.58 0 4.598-.943 5.19-3.67.247-1.13.12-2.07-.449-2.73z"/></svg>
                     Pagar con PayPal
                   </button>
@@ -336,15 +329,15 @@ function LeafCard({ node, onBack, breadcrumb }) {
             )}
 
             {hasCalendly && (
-              <ServiceBox icon="ti-calendar" accentColor="#006bff" accentBg="#eff2ff"
+              <ServiceBox icon="ti-calendar" accentColor="var(--gold-light)" accentBg="var(--gold-pale)"
                 title="Reservar cita" subtitle="Elige el horario que te convenga">
                 <p style={{ fontFamily:'var(--ff-body)', fontSize:'1rem', color:'var(--muted)', lineHeight:1.6, marginBottom:12 }}>
                   Agenda una consulta personalizada. Elige día y hora directamente en el calendario.
                 </p>
                 <a href={node.calendlyUrl} target="_blank" rel="noopener noreferrer"
-                  className="btn" style={{ background:'#006bff', color:'#fff', borderColor:'#006bff', fontSize:12 }}
-                  onMouseEnter={e => { e.currentTarget.style.background='#0054cc'; e.currentTarget.style.borderColor='#0054cc' }}
-                  onMouseLeave={e => { e.currentTarget.style.background='#006bff'; e.currentTarget.style.borderColor='#006bff' }}>
+                  className="btn" style={{ background:'var(--gold-light)', color:'#fff', borderColor:'var(--gold-light)', fontSize:12 }}
+                  onMouseEnter={e => { e.currentTarget.style.background='var(--gold)'; e.currentTarget.style.borderColor='var(--gold)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background='var(--gold-light)'; e.currentTarget.style.borderColor='var(--gold-light)' }}>
                   <i className="ti ti-calendar-event"/>Reservar cita
                 </a>
               </ServiceBox>
@@ -421,24 +414,34 @@ export default function GuidePage() {
       const data = await pub.roots()
       if (!data || data.length === 0) { setStatus('error'); return }
       setRoots(data)
-      if (data.length === 1) {
-        // Una sola raíz → ir directo si es una pregunta; si es hoja, mostrar welcome igual
-        const node = await pub.node(data[0].id)
-        setCurrent(node); setBreadcrumb([])
-        // Si solo hay una raíz y es pregunta, saltamos la bienvenida
-        setStatus(data[0].type === 'question' ? 'question-only' : 'welcome')
-      } else {
-        setStatus('welcome')
-      }
+      // Siempre empezar por el botón "Empezar ahora"
+      setStatus('start')
     } catch { setStatus('error') }
   }, [])
 
   useEffect(() => { loadRoots() }, [loadRoots])
 
+  // Pulsar "Empezar ahora"
+  const handleStart = async () => {
+    if (roots.length === 1) {
+      // Una sola raíz: ir directo a la pregunta sin pasar por el picker
+      setStatus('loading')
+      try {
+        const node = await pub.node(roots[0].id)
+        setCurrent(node); setBreadcrumb([]); setStatus('node')
+      } catch { setStatus('error') }
+    } else {
+      // Varias raíces: mostrar picker (reemplaza al botón)
+      setStatus('picker')
+    }
+  }
+
+  // Elegir una raíz del picker
   const handleSelectRoot = async (root) => {
     setStatus('loading')
     try {
       const node = await pub.node(root.id)
+      // Guardamos el picker como punto de retorno (breadcrumb vacío = volver al picker)
       setCurrent(node); setBreadcrumb([]); setStatus('node')
     } catch { setStatus('error') }
   }
@@ -447,20 +450,29 @@ export default function GuidePage() {
     setStatus('loading')
     try {
       const next = await pub.node(option.targetNodeId)
+      // Añadir nodo actual al historial con la respuesta elegida
       setBreadcrumb(bc => [...bc, { ...current, _selectedLabel: option.label }])
       setCurrent(next); setStatus('node')
     } catch { setStatus('error') }
   }
 
   const handleBack = (restart = false) => {
-    if (restart) { setCurrent(null); setBreadcrumb([]); setStatus('welcome'); return }
-    if (breadcrumb.length === 0) {
-      setCurrent(null); setBreadcrumb([])
-      setStatus(roots.length <= 1 ? 'welcome' : 'welcome')
+    if (restart) {
+      // "Hacer otra consulta" → volver al botón inicial
+      setCurrent(null); setBreadcrumb([]); setStatus('start')
       return
     }
+    if (breadcrumb.length === 0) {
+      // Primera pregunta: volver al picker (si hay varias raíces) o al botón inicial
+      setCurrent(null)
+      setStatus(roots.length > 1 ? 'picker' : 'start')
+      return
+    }
+    // Volver al nodo anterior del historial
     const prev = breadcrumb[breadcrumb.length - 1]
-    setBreadcrumb(bc => bc.slice(0, -1)); setCurrent(prev); setStatus('node')
+    setBreadcrumb(bc => bc.slice(0, -1))
+    setCurrent(prev)
+    setStatus('node')
   }
 
   const isLeaf = current?.type === 'leaf'
@@ -484,23 +496,17 @@ export default function GuidePage() {
         {status === 'loading' && <Loading/>}
         {status === 'error'   && <ErrorScreen onRetry={loadRoots}/>}
 
-        {/* Bienvenida con foto — raíces múltiples o raíz única que es hoja */}
-        {status === 'welcome' && (
-          <WelcomeView
-            roots={roots}
-            lawyerImg={lawyerImg}
-            lawyerName={lawyerName}
-            lawyerTitle={lawyerTitle}
-            onSelect={handleSelectRoot}
-          />
+        {/* Botón "Empezar ahora" */}
+        {status === 'start' && (
+          <StartButton onStart={handleStart}/>
         )}
 
-        {/* Raíz única que es pregunta: ir directo */}
-        {status === 'question-only' && current && (
-          <QuestionCard node={current} onAnswer={handleAnswer} onBack={handleBack} breadcrumb={[]}/>
+        {/* Picker de raíces — reemplaza al botón */}
+        {status === 'picker' && (
+          <RootPicker roots={roots} onSelect={handleSelectRoot}/>
         )}
 
-        {/* Navegación normal */}
+        {/* Navegación por el árbol */}
         {status === 'node' && current && !isLeaf && (
           <QuestionCard node={current} onAnswer={handleAnswer} onBack={handleBack} breadcrumb={breadcrumb}/>
         )}
