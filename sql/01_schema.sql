@@ -8,7 +8,7 @@ SET time_zone = '+00:00';
 -- ------------------------------------------------------------
 --  USUARIOS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id            BINARY(16)   NOT NULL,
     username      VARCHAR(50)  NOT NULL,
     email         VARCHAR(150) NOT NULL,
@@ -32,7 +32,7 @@ INSERT INTO users (`id`,`username`,`email`,`password_hash`,`role`,`enabled`,`cre
 -- ------------------------------------------------------------
 --  NODOS
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS nodes (
+CREATE TABLE nodes (
     id          BINARY(16)  NOT NULL,
     type        VARCHAR(10) NOT NULL,
     text        TEXT        NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS nodes (
 --  OPCIONES DE RESPUESTA
 --  target_node_id: nodo al que navega esta respuesta (puede ser null)
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS options (
+CREATE TABLE options (
     id             BINARY(16)  NOT NULL,
     node_id        BINARY(16)  NOT NULL,
     label          TEXT        NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS options (
 -- ------------------------------------------------------------
 --  ARCHIVOS PDF
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS pdf_files (
+CREATE TABLE pdf_files (
     id           BINARY(16)   NOT NULL,
     node_id      BINARY(16)   NOT NULL,
     filename     VARCHAR(255) NOT NULL,
@@ -89,7 +89,7 @@ INSERT INTO `options` (`id`, `node_id`, `label`, `position`, `target_node_id`, `
 
 -- ── Campos de servicios para nodos hoja ──────────────────────────────────
 ALTER TABLE nodes
-  ADD COLUMN IF NOT EXISTS service_link_url    VARCHAR(500) NULL COMMENT 'URL del enlace personalizado (recuadro 1)',
-  ADD COLUMN IF NOT EXISTS service_link_label  VARCHAR(200) NULL COMMENT 'Texto del botón del enlace personalizado',
-  ADD COLUMN IF NOT EXISTS paypal_button_id    VARCHAR(200) NULL COMMENT 'Hosted Button ID de PayPal (recuadro 2)',
-  ADD COLUMN IF NOT EXISTS calendly_url        VARCHAR(500) NULL COMMENT 'URL del widget de Calendly (recuadro 3)';
+  ADD COLUMN service_link_url    VARCHAR(500) NULL COMMENT 'URL del enlace personalizado (recuadro 1)',
+  ADD COLUMN service_link_label  VARCHAR(200) NULL COMMENT 'Texto del botón del enlace personalizado',
+  ADD COLUMN paypal_button_id    VARCHAR(200) NULL COMMENT 'Hosted Button ID de PayPal (recuadro 2)',
+  ADD COLUMN calendly_url        VARCHAR(500) NULL COMMENT 'URL del widget de Calendly (recuadro 3)';
