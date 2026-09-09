@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { pdf } from '../api/client'
 
-export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfChange, onNavigate, toast }) {
+export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfChange, onNavigate, toast, isAdmin }) {
   const fileRef = useRef()
 
   if (!node) return (
@@ -42,8 +42,12 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
           {node.description && <p style={{color:'var(--muted)', marginTop:6, fontSize:13, lineHeight:1.6}}>{node.description}</p>}
         </div>
         <div style={{ display:'flex', gap:8, flexShrink:0, marginLeft:16 }}>
-          <button className="btn btn-sm" onClick={onEdit}><i className="ti ti-edit"/> Editar</button>
-          <button className="btn btn-danger btn-sm" onClick={onDelete}><i className="ti ti-trash"/></button>
+          {isAdmin && (
+            <>
+              <button className="btn btn-sm" onClick={onEdit}><i className="ti ti-edit"/> Editar</button>
+              <button className="btn btn-danger btn-sm" onClick={onDelete}><i className="ti ti-trash"/></button>
+            </>
+          )}
         </div>
       </div>
 
@@ -140,9 +144,11 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
                 </div>
               </div>
               <button className="btn btn-sm" onClick={handleDownload}><i className="ti ti-download"/> Descargar</button>
-              <button className="btn btn-danger btn-sm" onClick={handleDeletePdf}><i className="ti ti-trash"/></button>
+              {isAdmin && (
+                <button className="btn btn-danger btn-sm" onClick={handleDeletePdf}><i className="ti ti-trash"/></button>
+              )}
             </div>
-          ) : (
+          ) : isAdmin ? (
             <label style={{
               display:'block', border:'1.5px dashed var(--border-md)', borderRadius:'var(--radius)',
               padding:'20px', textAlign:'center', cursor:'pointer', color:'var(--muted)', fontSize:13,
@@ -154,12 +160,16 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
               Arrastra un PDF o haz clic para subir
               <input ref={fileRef} type="file" accept=".pdf" style={{display:'none'}} onChange={handleUpload}/>
             </label>
+          ) : (
+            <div style={{padding:'16px', textAlign:'center', color:'var(--faint)', fontSize:13}}>
+              Sin documento PDF disponible todavía.
+            </div>
           )}
         </div>
       )}
 
       {/* Add child */}
-      {node.type === 'question' && (
+      {node.type === 'question' && isAdmin && (
         <div style={{display:'flex', gap:8, marginTop:8}}>
           <button className="btn btn-sm" onClick={() => onAddChild('question')}>
             <i className="ti ti-git-branch"/> Añadir pregunta hija

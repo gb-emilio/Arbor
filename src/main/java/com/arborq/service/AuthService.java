@@ -2,6 +2,7 @@ package com.arborq.service;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.arborq.dto.AuthRequest;
 import com.arborq.dto.AuthResponse;
 import com.arborq.dto.RegisterRequest;
+import com.arborq.dto.RegisterResponse;
 import com.arborq.model.User;
 import com.arborq.repository.UserRepository;
 import com.arborq.security.JwtService;
@@ -54,6 +56,11 @@ public class AuthService {
             AuthenticationManager manager = authConfig.getAuthenticationManager();
             manager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
+        } catch (DisabledException e) {
+            // Spring Security ya comprueba UserDetails.isEnabled() automáticamente
+            // (DaoAuthenticationProvider → preAuthenticationChecks) antes de validar
+            // la contraseña, y lanza esta excepción si enabled=false.
+            throw new DisabledException("Tu cuenta está pendiente de activación por un administrador.");
         } catch (BadCredentialsException e) {
             throw new BadCredentialsException("Usuario o contraseña incorrectos");
         }
@@ -69,7 +76,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse register(RegisterRequest req) {
+    public RegisterResponse register(RegisterRequest req) {
 
         if (userRepo.existsByUsername(req.getUsername()))
             throw new IllegalArgumentException("El nombre de usuario ya existe.");
@@ -80,14 +87,23 @@ public class AuthService {
         user.setUsername(req.getUsername().trim());
         user.setEmail(req.getEmail().trim().toLowerCase());
         user.setPasswordHash(encoder.encode(req.getPassword())); // BCrypt coste 12 — nunca texto plano
-        user.setRole("ADMIN".equals(req.getRole()) ? "ADMIN" : "USER");
+        // El registro público nunca puede auto-asignarse ADMIN; siempre USER.
+        // Un administrador puede ascender el rol después desde /api/v1/users/{id}/role.
+        user.setRole("USER");
+        // La cuenta queda inactiva hasta que un administrador la active,
+        // ya sea desde la aplicación (PATCH /api/v1/users/{id}/toggle) o directamente en BD.
+        user.setEnabled(false);
 
         userRepo.save(user);
-        log.info("Usuario registrado: {}", user.getUsername());
-        return new AuthResponse(
-                jwtService.generateToken(user),
-                user.getUsername(), user.getEmail(), user.getRole());
+        log.info("Usuario registrado (pendiente de activación): {}", user.getUsername());
+
+        return new RegisterResponse(
+                user.getUsername(),
+                user.getEmail(),
+                "Registro completado. Tu cuenta está pendiente de activación por un administrador."
+        );
 
     }
 
 }
+

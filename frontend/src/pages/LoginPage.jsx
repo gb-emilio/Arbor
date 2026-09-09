@@ -8,21 +8,27 @@ export default function LoginPage() {
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ username:'', email:'', password:'' })
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const submit = async e => {
     e.preventDefault()
-    setError(''); setLoading(true)
+    setError(''); setSuccess(''); setLoading(true)
     try {
-      let res
       if (mode === 'login') {
-        res = await auth.login({ username: form.username, password: form.password })
+        const res = await auth.login({ username: form.username, password: form.password })
+        login(res.token, { username: res.username, email: res.email, role: res.role })
       } else {
-        res = await auth.register({ username: form.username, email: form.email, password: form.password })
+        // El registro NO devuelve token: la cuenta queda pendiente de
+        // activación por un administrador. Mostramos el mensaje y
+        // volvemos a la pestaña de inicio de sesión.
+        const res = await auth.register({ username: form.username, email: form.email, password: form.password })
+        setSuccess(res.message || 'Registro completado. Tu cuenta está pendiente de activación.')
+        setMode('login')
+        setForm(f => ({ ...f, password: '' }))
       }
-      login(res.token, { username: res.username, email: res.email, role: res.role })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -45,7 +51,7 @@ export default function LoginPage() {
           {/* Tabs */}
           <div style={{display:'flex', borderBottom:'0.5px solid var(--border)', marginBottom:24, marginLeft:-24, marginRight:-24, paddingLeft:24}}>
             {['login','register'].map(m => (
-              <button key={m} onClick={() => { setMode(m); setError('') }}
+              <button key={m} onClick={() => { setMode(m); setError(''); setSuccess('') }}
                 style={{
                   padding:'10px 16px', border:'none', background:'none', cursor:'pointer',
                   fontFamily:'var(--font-sans)', fontSize:13, fontWeight: mode===m ? 500 : 400,
@@ -77,6 +83,14 @@ export default function LoginPage() {
                 placeholder={mode==='register' ? 'Mínimo 8 caracteres' : '••••••••'} required/>
             </div>
 
+            {success && (
+              <div style={{background:'var(--gold-pale)', color:'var(--terracotta)', padding:'10px 12px',
+                borderRadius:'var(--radius-sm)', fontSize:13, marginBottom:16, lineHeight:1.5}}>
+                <i className="ti ti-clock" style={{fontSize:14, marginRight:6}}/>
+                {success}
+              </div>
+            )}
+
             {error && (
               <div style={{background:'var(--danger-bg)', color:'var(--danger)', padding:'8px 12px',
                 borderRadius:'var(--radius-sm)', fontSize:13, marginBottom:16}}>
@@ -92,11 +106,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {mode === 'login' && (
-            <p style={{textAlign:'center', marginTop:16, fontSize:12, color:'var(--faint)'}}>
-              Admin por defecto: <code>admin</code> / <code>Admin1234!</code>
-            </p>
-          )}
+
 
           <div style={{textAlign:'center', marginTop:20, paddingTop:16, borderTop:'0.5px solid var(--border)'}}>
             <Link to="/guia" style={{

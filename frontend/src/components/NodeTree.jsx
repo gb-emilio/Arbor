@@ -37,16 +37,18 @@ function NodeRow({ node, depth, selectedId, onSelect, onAdd, onDelete }) {
   )
 }
 
-export default function NodeTree({ tree, selectedId, onSelect, onAdd }) {
+export default function NodeTree({ tree, selectedId, onSelect, onAdd, isAdmin }) {
   return (
     <div>
       <div style={{ padding: '10px 12px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--faint)', textTransform: 'uppercase', letterSpacing: '.08em' }}>
           Árbol
         </span>
-        <button className="btn btn-ghost btn-sm" style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => onAdd(null)}>
-          <i className="ti ti-plus" style={{ fontSize: 12 }}/> Raíz
-        </button>
+        {isAdmin && (
+          <button className="btn btn-ghost btn-sm" style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => onAdd(null)}>
+            <i className="ti ti-plus" style={{ fontSize: 12 }}/> Raíz
+          </button>
+        )}
       </div>
       {tree.length === 0
         ? <div style={{ padding: '12px 16px', fontSize: 12, color: 'var(--faint)' }}>Sin nodos. Crea una raíz.</div>

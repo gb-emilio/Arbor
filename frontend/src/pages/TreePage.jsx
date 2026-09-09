@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { nodes as api } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 import NodeTree from '../components/NodeTree'
 import NodeDetail from '../components/NodeDetail'
 import NodeForm from '../components/NodeForm'
@@ -7,6 +8,7 @@ import Modal from '../components/Modal'
 import Spinner from '../components/Spinner'
 
 export default function TreePage({ toast }) {
+  const { isAdmin } = useAuth()
   const [tree, setTree] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
@@ -95,7 +97,7 @@ export default function TreePage({ toast }) {
     <div style={{ display:'grid', gridTemplateColumns:'280px 1fr', height:'100%' }}>
       {/* Sidebar árbol */}
       <div style={{ borderRight:'0.5px solid var(--border)', overflowY:'auto', background:'var(--surface2)' }}>
-        <NodeTree tree={tree} selectedId={selected?.id} onSelect={handleSelect} onAdd={handleAdd}/>
+        <NodeTree tree={tree} selectedId={selected?.id} onSelect={handleSelect} onAdd={handleAdd} isAdmin={isAdmin}/>
       </div>
 
       {/* Panel principal */}
@@ -140,6 +142,7 @@ export default function TreePage({ toast }) {
             onPdfChange={loadTree}
             onNavigate={handleNavigate}
             toast={toast}
+            isAdmin={isAdmin}
           />
         </div>
       </div>

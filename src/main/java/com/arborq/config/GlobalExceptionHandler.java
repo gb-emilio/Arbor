@@ -4,6 +4,8 @@ import com.arborq.dto.ApiError;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleBadRequest(IllegalArgumentException ex) {
         return build(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage());
+    }
+
+    /** Cuenta con enabled=false: registrada pero pendiente de activación por un admin. */
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ApiError> handleDisabled(DisabledException ex) {
+        return build(HttpStatus.FORBIDDEN, "Account Disabled", ex.getMessage());
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiError> handleBadCredentials(BadCredentialsException ex) {
+        return build(HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
