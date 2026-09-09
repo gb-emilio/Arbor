@@ -106,7 +106,11 @@ export default function LoginPage() {
             </button>
           </form>
 
-
+          {mode === 'login' && (
+            <p style={{textAlign:'center', marginTop:16, fontSize:12, color:'var(--faint)'}}>
+              Admin por defecto: <code>admin</code> / <code>Admin1234!</code>
+            </p>
+          )}
 
           <div style={{textAlign:'center', marginTop:20, paddingTop:16, borderTop:'0.5px solid var(--border)'}}>
             <Link to="/guia" style={{

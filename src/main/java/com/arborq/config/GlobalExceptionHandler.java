@@ -1,6 +1,7 @@
 package com.arborq.config;
 
 import com.arborq.dto.ApiError;
+import com.arborq.security.RateLimitException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -32,6 +33,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<ApiError> handleDisabled(DisabledException ex) {
         return build(HttpStatus.FORBIDDEN, "Account Disabled", ex.getMessage());
+    }
+
+    /** Límite de 1 registro por IP cada minuto (ver RegistrationRateLimiter). */
+    @ExceptionHandler(RateLimitException.class)
+    public ResponseEntity<ApiError> handleRateLimit(RateLimitException ex) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage());
     }
 
     @ExceptionHandler(BadCredentialsException.class)
