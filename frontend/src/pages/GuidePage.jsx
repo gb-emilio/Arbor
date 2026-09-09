@@ -394,6 +394,29 @@ export default function GuidePage() {
 
   const rootRef = useRef(null)
 
+  /**
+   * Si un nodo es de tipo 'question' pero no tiene opciones propias
+   * y tiene exactamente un hijo, es un nodo "puente" (categoría).
+   * Lo saltamos automáticamente y devolvemos su único hijo, junto con
+   * la cadena de nodos puente saltados para el breadcrumb.
+   * Como el backend ya trae el árbol completo de forma recursiva,
+   * esto se resuelve en memoria sin peticiones adicionales.
+   */
+  const resolveEntryNode = (node) => {
+    const skipped = []
+    let n = node
+    while (
+      n && n.type === 'question' &&
+      (!n.options || n.options.length === 0) &&
+      n.children && n.children.length === 1
+    ) {
+      skipped.push(n)
+      n = n.children[0]
+    }
+    return { node: n, skipped }
+  }
+
+
   // Leer parámetros de URL (WordPress puede pasarlos al iframe)
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
@@ -428,7 +451,10 @@ export default function GuidePage() {
       setStatus('loading')
       try {
         const node = await pub.node(roots[0].id)
-        setCurrent(node); setBreadcrumb([]); setStatus('node')
+        const { node: entry, skipped } = resolveEntryNode(node)
+        setCurrent(entry)
+        setBreadcrumb(skipped.map(n => ({ ...n, _selectedLabel: null })))
+        setStatus('node')
       } catch { setStatus('error') }
     } else {
       // Varias raíces: mostrar picker (reemplaza al botón)
@@ -441,8 +467,11 @@ export default function GuidePage() {
     setStatus('loading')
     try {
       const node = await pub.node(root.id)
+      const { node: entry, skipped } = resolveEntryNode(node)
       // Guardamos el picker como punto de retorno (breadcrumb vacío = volver al picker)
-      setCurrent(node); setBreadcrumb([]); setStatus('node')
+      setCurrent(entry)
+      setBreadcrumb(skipped.map(n => ({ ...n, _selectedLabel: null })))
+      setStatus('node')
     } catch { setStatus('error') }
   }
 
@@ -450,9 +479,15 @@ export default function GuidePage() {
     setStatus('loading')
     try {
       const next = await pub.node(option.targetNodeId)
-      // Añadir nodo actual al historial con la respuesta elegida
-      setBreadcrumb(bc => [...bc, { ...current, _selectedLabel: option.label }])
-      setCurrent(next); setStatus('node')
+      const { node: entry, skipped } = resolveEntryNode(next)
+      // Añadir nodo actual al historial con la respuesta elegida,
+      // y encadenar cualquier nodo puente saltado tras él
+      setBreadcrumb(bc => [
+        ...bc,
+        { ...current, _selectedLabel: option.label },
+        ...skipped.map(n => ({ ...n, _selectedLabel: null })),
+      ])
+      setCurrent(entry); setStatus('node')
     } catch { setStatus('error') }
   }
 
@@ -462,15 +497,26 @@ export default function GuidePage() {
       setCurrent(null); setBreadcrumb([]); setStatus('start')
       return
     }
-    if (breadcrumb.length === 0) {
-      // Primera pregunta: volver al picker (si hay varias raíces) o al botón inicial
+    // Retroceder saltando también los nodos puente (sin opciones propias)
+    // que se hubieran auto-saltado al avanzar
+    let bc = breadcrumb.slice()
+    let prev = null
+    while (bc.length > 0) {
+      const candidate = bc[bc.length - 1]
+      bc = bc.slice(0, -1)
+      const isBridge = candidate.type === 'question' &&
+        (!candidate.options || candidate.options.length === 0) &&
+        candidate.children && candidate.children.length === 1
+      if (!isBridge) { prev = candidate; break }
+    }
+    if (!prev) {
+      // No queda ningún nodo real en el historial: volver al picker o al botón inicial
       setCurrent(null)
+      setBreadcrumb([])
       setStatus(roots.length > 1 ? 'picker' : 'start')
       return
     }
-    // Volver al nodo anterior del historial
-    const prev = breadcrumb[breadcrumb.length - 1]
-    setBreadcrumb(bc => bc.slice(0, -1))
+    setBreadcrumb(bc)
     setCurrent(prev)
     setStatus('node')
   }
