@@ -17,13 +17,7 @@ function Layout() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="topbar-logo">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 3v4M8 5l4-2 4 2M5 9h14M7 9v3a2 2 0 002 2h6a2 2 0 002-2V9M12 14v3M9 17h6M10 20h4"/>
-          </svg>
-          ArborQ
-        </div>
+        <div className="topbar-logo"></div>
         <div className="topbar-right">
           <Link to="/guia" style={{
             fontSize:12, color:'var(--muted)', textDecoration:'none',

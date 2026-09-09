@@ -485,13 +485,6 @@ export default function GuidePage() {
 
   return (
     <div ref={rootRef} style={wrapStyle}>
-      {/* Header solo fuera del iframe */}
-      {!IN_IFRAME && (
-        <div style={{ maxWidth:640, margin:'0 auto 32px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div style={{ fontFamily:'var(--ff-display)', fontSize:'1.3rem', color:'var(--gold)' }}>ArborQ</div>
-        </div>
-      )}
-
       <div style={{ maxWidth:620, margin:'0 auto' }}>
         {status === 'loading' && <Loading/>}
         {status === 'error'   && <ErrorScreen onRetry={loadRoots}/>}

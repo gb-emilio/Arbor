@@ -38,9 +38,6 @@ export default function LoginPage() {
       <div style={{width:380}}>
         {/* Logo */}
         <div style={{textAlign:'center', marginBottom:32}}>
-          <div style={{fontFamily:'var(--font-serif)', fontSize:36, color:'var(--accent)', marginBottom:6}}>
-            ArborQ
-          </div>
           <p style={{color:'var(--muted)', fontSize:14}}>Gestión de árbol de preguntas</p>
         </div>
 
