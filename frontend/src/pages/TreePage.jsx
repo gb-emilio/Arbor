@@ -38,6 +38,30 @@ export default function TreePage({ toast }) {
     return null
   }
 
+  /** Reemplaza un nodo (y su subárbol) en cualquier profundidad del árbol en memoria */
+  function replaceNode(nodes, updated) {
+    return nodes.map(n => {
+      if (n.id === updated.id) return updated
+      if (n.children?.length) return { ...n, children: replaceNode(n.children, updated) }
+      return n
+    })
+  }
+
+  /**
+   * Refresca un único nodo pidiéndolo directamente al backend (GET /nodes/{id}),
+   * en lugar de recargar el árbol completo. Se usa tras operaciones sobre el PDF
+   * (subir/eliminar) para garantizar que la vista siempre refleja el estado real
+   * del servidor sin depender de que el árbol completo se haya vuelto a cargar
+   * correctamente ni de coincidencias de referencia en memoria.
+   */
+  const refreshNode = useCallback(async (id) => {
+    try {
+      const fresh = await api.get(id)
+      setSelected(fresh)
+      setTree(t => replaceNode(t, fresh))
+    } catch (err) { toast.err(err.message) }
+  }, [])
+
   // Navegar a un nodo por ID (desde clic en opción o en hijo)
   const handleNavigate = (nodeId) => {
     const target = findNode(tree, nodeId)
@@ -139,7 +163,7 @@ export default function TreePage({ toast }) {
             onEdit={() => setModal({ mode: 'edit' })}
             onDelete={handleDelete}
             onAddChild={(type) => handleAdd(selected.id, type)}
-            onPdfChange={loadTree}
+            onPdfChange={() => refreshNode(selected.id)}
             onNavigate={handleNavigate}
             toast={toast}
             isAdmin={isAdmin}

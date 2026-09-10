@@ -5,6 +5,7 @@ import com.arborq.security.RateLimitException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.validation.FieldError;
@@ -39,6 +40,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RateLimitException.class)
     public ResponseEntity<ApiError> handleRateLimit(RateLimitException ex) {
         return build(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage());
+    }
+
+    /** Usuario autenticado pero sin el rol requerido (@PreAuthorize) para la operación. */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex) {
+        return build(HttpStatus.FORBIDDEN, "Forbidden",
+                "No tienes permisos para realizar esta acción. Se requiere rol de administrador.");
     }
 
     @ExceptionHandler(BadCredentialsException.class)

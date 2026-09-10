@@ -346,29 +346,6 @@ function LeafCard({ node, onBack, breadcrumb }) {
         </div>
       )}
 
-      {/* Recorrido */}
-      {breadcrumb.length > 0 && (
-        <div style={{ marginBottom:16, padding:'16px 16px 12px', background:'var(--cream-dark)', borderRadius:'var(--radius)', border:'1px solid var(--border)' }}>
-          <div style={{ fontFamily:'var(--ff-ui)', fontSize:'.62rem', fontWeight:600, letterSpacing:'.15em', textTransform:'uppercase', color:'var(--faint)', marginBottom:10 }}>Tu recorrido</div>
-          {breadcrumb.map((b, i) => (
-            <div key={b.id} style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:8 }}>
-              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', paddingTop:4 }}>
-                <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--gold)', flexShrink:0 }}/>
-                {i < breadcrumb.length - 1 && <div style={{ width:1, height:16, background:'var(--border-md)', margin:'2px 0' }}/>}
-              </div>
-              <div>
-                <div style={{ fontFamily:'var(--ff-ui)', fontSize:12, color:'var(--muted)' }}>{b.text}</div>
-                {b._selectedLabel && <div style={{ fontFamily:'var(--ff-ui)', fontSize:11, color:'var(--gold)', marginTop:1 }}>→ {b._selectedLabel}</div>}
-              </div>
-            </div>
-          ))}
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--terracotta)', flexShrink:0 }}/>
-            <div style={{ fontFamily:'var(--ff-ui)', fontSize:12, fontWeight:600, color:'var(--terracotta)' }}>{node.text}</div>
-          </div>
-        </div>
-      )}
-
       <div style={{ textAlign:'center', paddingTop:12, borderTop:'1px solid var(--border)' }}>
         <button onClick={() => onBack(true)} className="btn btn-ghost btn-sm">
           <i className="ti ti-refresh"/> Hacer otra consulta

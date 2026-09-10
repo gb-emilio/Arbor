@@ -26,6 +26,7 @@ async function request(method, path, body, isMultipart = false) {
 
   const res = await fetch(BASE + path, {
     method, headers,
+    cache: 'no-store', // evita que el navegador sirva respuestas cacheadas de la API
     body: isMultipart ? body : (body ? JSON.stringify(body) : undefined)
   })
 

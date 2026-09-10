@@ -14,7 +14,7 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
 
   const handleUpload = async e => {
     const file = e.target.files[0]; if (!file) return
-    try { await pdf.upload(node.id, file); toast.ok('PDF subido correctamente'); onPdfChange() }
+    try { await pdf.upload(node.id, file); toast.ok('PDF subido correctamente'); await onPdfChange() }
     catch (err) { toast.err(err.message) }
     fileRef.current.value = ''
   }
@@ -26,7 +26,7 @@ export default function NodeDetail({ node, onEdit, onDelete, onAddChild, onPdfCh
 
   const handleDeletePdf = async () => {
     if (!confirm('¿Eliminar el PDF de este nodo?')) return
-    try { await pdf.remove(node.id); toast.ok('PDF eliminado'); onPdfChange() }
+    try { await pdf.remove(node.id); toast.ok('PDF eliminado'); await onPdfChange() }
     catch (err) { toast.err(err.message) }
   }
 

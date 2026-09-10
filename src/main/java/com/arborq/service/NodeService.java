@@ -177,9 +177,13 @@ public class NodeService {
 
     @Transactional
     public void deletePdf(UUID nodeId) {
-        findOrThrow(nodeId);
-        pdfRepo.delete(pdfRepo.findByNodeId(nodeId)
-                .orElseThrow(() -> new EntityNotFoundException("No hay PDF en el nodo " + nodeId)));
+        Node node = findOrThrow(nodeId);
+        PdfFile pdf = pdfRepo.findByNodeId(nodeId)
+                .orElseThrow(() -> new EntityNotFoundException("No hay PDF en el nodo " + nodeId));
+        pdfRepo.delete(pdf);
+        // Limpiamos también la referencia en memoria de la entidad Node por si
+        // quedara cacheada en el contexto de persistencia de esta transacción.
+        node.setPdfFile(null);
         log.info("PDF eliminado del nodo {}", nodeId);
     }
 
