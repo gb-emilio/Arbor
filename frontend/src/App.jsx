@@ -6,6 +6,9 @@ import LoginPage from './pages/LoginPage'
 import TreePage from './pages/TreePage'
 import UsersPage from './pages/UsersPage'
 import GuidePage from './pages/GuidePage'
+import EmailTemplatePage from './pages/EmailTemplatePage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import DataProcessingPolicyPage from './pages/DataProcessingPolicyPage'
 
 function Layout() {
   const { user, logout, isAdmin } = useAuth()
@@ -47,6 +50,9 @@ function Layout() {
             <NavLink to="/users" className={({isActive}) => 'nav-item' + (isActive ? ' active' : '')}>
               <i className="ti ti-users" style={{fontSize:15}}/> Usuarios
             </NavLink>
+            <NavLink to="/email-template" className={({isActive}) => 'nav-item' + (isActive ? ' active' : '')}>
+              <i className="ti ti-mail-cog" style={{fontSize:15}}/> Plantilla de email
+            </NavLink>
           </>}
           <div className="nav-section" style={{marginTop:'auto'}}>Acceso público</div>
           <NavLink to="/guia" className={({isActive}) => 'nav-item' + (isActive ? ' active' : '')}>
@@ -59,6 +65,7 @@ function Layout() {
         <Routes>
           <Route path="/tree"  element={<TreePage toast={toast}/>}/>
           <Route path="/users" element={isAdmin ? <UsersPage toast={toast}/> : <Navigate to="/tree"/>}/>
+          <Route path="/email-template" element={isAdmin ? <EmailTemplatePage toast={toast}/> : <Navigate to="/tree"/>}/>
           <Route path="/guia"  element={<GuidePage/>}/>
           <Route path="*"      element={<Navigate to="/tree"/>}/>
         </Routes>
@@ -86,6 +93,8 @@ export default function App() {
         <Routes>
           {/* Rutas completamente públicas (sin shell de admin) */}
           <Route path="/guia"  element={<GuidePage/>}/>
+          <Route path="/politica-privacidad" element={<PrivacyPolicyPage/>}/>
+          <Route path="/politica-tratamiento-datos" element={<DataProcessingPolicyPage/>}/>
           <Route path="/login" element={<PublicRoute><LoginPage/></PublicRoute>}/>
           {/* Rutas protegidas */}
           <Route path="/*"     element={<ProtectedRoute><Layout/></ProtectedRoute>}/>

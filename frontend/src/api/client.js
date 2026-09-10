@@ -91,4 +91,25 @@ export const pub = {
   node:  (id) => fetch(PUB + '/nodes/' + id).then(r => r.ok ? r.json() : Promise.reject()),
   /** Descarga el PDF de un nodo hoja (sin autenticación) */
   pdfUrl: (nodeId) => `${(import.meta.env.VITE_API_URL ?? '')}/api/v1/nodes/${nodeId}/pdf`,
+  /** Envía la solución del nodo por email, tras aceptar las políticas */
+  sendSolution: async (nodeId, payload) => {
+    const res = await fetch(`${PUB}/nodes/${nodeId}/send-solution`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify(payload)
+    })
+    if (!res.ok) {
+      let msg = `Error ${res.status}`
+      try { const e = await res.json(); msg = e.message || msg } catch {}
+      throw new Error(msg)
+    }
+    return res.json()
+  },
+}
+
+// Plantilla de email compartida por todas las hojas — solo ADMIN
+export const emailTemplate = {
+  get:    ()   => request('GET', '/email-template'),
+  update: (d)  => request('PUT', '/email-template', d),
 }

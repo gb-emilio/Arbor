@@ -2,14 +2,17 @@ app:
   jwt:
     secret: "6D5A7134743777217A25432A462D4A614E645267556B587032733576387839782F423F4428472B4B6250655368566D5970337336"
     expiration-ms: 86400000   # 24 h
+  mail:
+    from: "abogada@bcorcino.com"
+
 server:
   port: 8080
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/arborq?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
-    username: arborq_user
-    password: arborq_pass
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/arborq?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${SPRING_DATASOURCE_USERNAME:arborq_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:arborq_pass}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -29,6 +32,26 @@ spring:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
+
+  # ─── SMTP — configurar con las credenciales reales del proveedor de correo ───
+  # El remitente visible (app.mail.from) es abogada@bcorcino.com, pero para que
+  # el envío funcione de verdad, MAIL_USERNAME/MAIL_PASSWORD deben ser una
+  # cuenta SMTP autorizada a enviar en nombre de ese dominio (o un servicio
+  # transaccional tipo SendGrid/Mailgun/Amazon SES configurado con ese dominio).
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:egarciaf}
+    password: ${MAIL_PASSWORD:soqp sjpo gfxj jwnh}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 8000
+          timeout: 8000
+          writetimeout: 8000
 
 logging:
   level:

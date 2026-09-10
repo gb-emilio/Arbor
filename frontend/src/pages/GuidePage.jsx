@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { pub } from '../api/client'
-
-const API = import.meta.env.VITE_API_URL ?? ''
+import SendSolutionModal from '../components/SendSolutionModal'
 
 /* ── Detectar si estamos dentro de un iframe ─────────── */
 const IN_IFRAME = (() => { try { return window.self !== window.top } catch { return true } })()
@@ -219,6 +218,7 @@ function ServiceBox({ icon, accentColor, accentBg, title, subtitle, children }) 
 ══════════════════════════════════════════════════════ */
 function LeafCard({ node, onBack, breadcrumb }) {
   const style = useEnter(node.id)
+  const [showSendModal, setShowSendModal] = useState(false)
   const hasPdf      = !!node.pdf
   const hasLink     = !!node.serviceLinkUrl
   const hasPaypal   = !!node.paypalButtonId
@@ -261,22 +261,9 @@ function LeafCard({ node, onBack, breadcrumb }) {
               </div>
             </div>
             <div style={{ textAlign:'center' }}>
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await fetch(`${API}/api/v1/nodes/${node.id}/pdf`)
-                    if (!res.ok) throw new Error()
-                    const blob = await res.blob()
-                    const a = Object.assign(document.createElement('a'), {
-                      href: URL.createObjectURL(blob), download: node.pdf.filename
-                    })
-                    document.body.appendChild(a); a.click()
-                    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 100)
-                  } catch { alert('No se pudo descargar el PDF.') }
-                }}
-                className="btn btn-primary">
-                <i className="ti ti-download"/>
-                Descargar documento PDF
+              <button onClick={() => setShowSendModal(true)} className="btn btn-primary">
+                <i className="ti ti-mail"/>
+                Enviar solución a mi email
               </button>
             </div>
           </>
@@ -287,6 +274,10 @@ function LeafCard({ node, onBack, breadcrumb }) {
           </div>
         )}
       </div>
+
+      {showSendModal && (
+        <SendSolutionModal nodeId={node.id} onClose={() => setShowSendModal(false)}/>
+      )}
 
       {/* Servicios adicionales */}
       {hasServices && (
